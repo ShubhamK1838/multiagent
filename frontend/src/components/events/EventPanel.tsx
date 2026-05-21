@@ -21,6 +21,7 @@ const EVENT_CONFIG: Record<EventType, { label: string; color: string; icon: Reac
   TOOL_ERROR:      { label: 'Error',     color: 'text-red-300',     icon: AlertCircle },
   FORM_REQUEST:    { label: 'Form',      color: 'text-purple-300',  icon: FileInput },
   FORM_RESOLVED:   { label: 'Form OK',   color: 'text-emerald-300', icon: CheckCircle },
+  FORM_SUBMITTED:  { label: 'Submitted', color: 'text-emerald-300', icon: CheckCircle },
   TOKEN:           { label: 'Token',     color: 'text-gray-500',    icon: ChevronRight },
   STREAM_RESET:    { label: 'Reset',     color: 'text-gray-500',    icon: ChevronRight },
   RESPONSE_START:  { label: 'Start',     color: 'text-violet-300',  icon: Zap },

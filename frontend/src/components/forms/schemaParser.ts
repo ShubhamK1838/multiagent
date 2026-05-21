@@ -50,7 +50,7 @@ function inferField(key: string, prop: JsonSchemaProperty): Omit<ParsedField, 'r
   return { ...base, component: 'text' }
 }
 
-function inferStringField(prop: JsonSchemaProperty): Partial<ParsedField> {
+function inferStringField(prop: JsonSchemaProperty): { component: FieldComponentType; accept?: string } {
   if (prop['ui:widget'] === 'password') return { component: 'password' }
   if (prop['ui:widget'] === 'textarea') return { component: 'textarea' }
   if (prop.format === 'date') return { component: 'date' }

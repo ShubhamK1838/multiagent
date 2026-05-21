@@ -32,7 +32,7 @@ interface ChatStore {
   clearEvents: (conversationId: string) => void
 }
 
-export const useChatStore = create<ChatStore>((set, get) => ({
+export const useChatStore = create<ChatStore>()((set, get) => ({
   conversations: [],
   activeConversationId: null,
   messages: {},

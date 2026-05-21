@@ -1,14 +1,14 @@
-import React, { useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Upload, X } from 'lucide-react'
 
 interface FileInputProps {
-  value: string
   onChange: (v: string) => void
   accept?: string
   hasError: boolean
+  value?: string
 }
 
-export function FileInput({ value, onChange, accept, hasError }: FileInputProps) {
+export function FileInput({ onChange, accept, hasError }: FileInputProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [fileName, setFileName] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)

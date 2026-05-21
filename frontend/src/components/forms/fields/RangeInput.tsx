@@ -1,5 +1,3 @@
-import React from 'react'
-
 interface RangeInputProps {
   value: number
   onChange: (v: number) => void
@@ -9,8 +7,6 @@ interface RangeInputProps {
 }
 
 export function RangeInput({ value, onChange, min = 0, max = 100, step = 1 }: RangeInputProps) {
-  const pct = ((value - min) / (max - min)) * 100
-
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-3">

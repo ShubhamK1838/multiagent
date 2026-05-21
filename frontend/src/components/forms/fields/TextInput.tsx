@@ -1,4 +1,3 @@
-import React from 'react'
 import type { FieldComponentType } from '../../../types/form'
 
 interface TextInputProps {

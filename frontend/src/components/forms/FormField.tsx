@@ -1,4 +1,3 @@
-import React from 'react'
 import type { ParsedField } from '../../types/form'
 import { FieldWrapper } from './fields/FieldWrapper'
 import { TextInput } from './fields/TextInput'

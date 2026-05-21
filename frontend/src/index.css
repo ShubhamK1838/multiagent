@@ -30,7 +30,7 @@
   .btn-primary {
     @apply bg-violet-600 hover:bg-violet-500 active:bg-violet-700 text-white px-4 py-2
            rounded-lg text-sm font-medium transition-all duration-150
-           shadow-lg shadow-violet-600/20 hover:shadow-violet-500/30
+           shadow-lg
            hover:-translate-y-0.5 active:translate-y-0
            disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0;
   }
@@ -40,25 +40,25 @@
            hover:-translate-y-0.5 active:translate-y-0;
   }
   .btn-ghost {
-    @apply text-gray-400 hover:text-gray-100 hover:bg-gray-800/70 px-3 py-2 rounded-lg
+    @apply text-gray-400 hover:text-gray-100 hover:bg-gray-800 px-3 py-2 rounded-lg
            text-sm transition-all duration-150;
   }
   .btn-danger {
-    @apply bg-red-600/90 hover:bg-red-500 active:bg-red-700 text-white px-4 py-2
+    @apply bg-red-600 hover:bg-red-500 active:bg-red-700 text-white px-4 py-2
            rounded-lg text-sm font-medium transition-all duration-150
-           shadow-lg shadow-red-600/20 hover:-translate-y-0.5;
+           shadow-lg hover:-translate-y-0.5;
   }
   .card {
-    @apply bg-gray-900/80 backdrop-blur-sm border border-gray-800 rounded-xl
+    @apply bg-gray-900 backdrop-blur-sm border border-gray-800 rounded-xl
            transition-all duration-200;
   }
   .card-hover {
-    @apply hover:border-gray-700 hover:bg-gray-900 hover:shadow-xl hover:shadow-black/30;
+    @apply hover:border-gray-700 hover:shadow-xl;
   }
   .input {
-    @apply bg-gray-800/80 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100
-           focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20
-           placeholder-gray-500 w-full transition-all duration-150;
+    @apply bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100
+           focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500
+           focus:ring-opacity-20 placeholder-gray-500 w-full transition-all duration-150;
   }
   .label {
     @apply text-xs font-medium text-gray-400 uppercase tracking-wider;
@@ -68,7 +68,7 @@
   }
   .chip {
     @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs
-           bg-gray-800/80 border border-gray-700 text-gray-300;
+           bg-gray-800 border border-gray-700 text-gray-300;
   }
   .nav-item {
     @apply relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium

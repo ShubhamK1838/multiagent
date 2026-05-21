@@ -1,4 +1,3 @@
-import React from 'react'
 import type { FieldOption } from '../../../types/form'
 
 interface SelectInputProps {
