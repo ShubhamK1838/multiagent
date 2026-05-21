@@ -13,6 +13,7 @@ import { useConversations } from './hooks/useConversations'
 import { useUiSettings } from './hooks/useUiSettings'
 import { ThemeProvider } from './components/shared/ThemeProvider'
 import { BackgroundGrid } from './components/shared/BackgroundGrid'
+import { BootSequence } from './components/shared/BootSequence'
 
 const pageVariants = {
   initial: { opacity: 0, y: 8 },
@@ -21,6 +22,7 @@ const pageVariants = {
 }
 
 export default function App() {
+  const [booted, setBooted] = useState(false)
   const [activeView, setActiveView] = useState<View>('chat')
   const { activeConversationId, createConversation } = useConversations()
   const { getBoolean } = useUiSettings()
@@ -33,54 +35,57 @@ export default function App() {
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-gray-950">
-      <ThemeProvider />
-      <BackgroundGrid />
-      <TopNav activeView={activeView} onChange={setActiveView} />
+    <>
+      {!booted && <BootSequence onComplete={() => setBooted(true)} />}
+      <div className="flex flex-col h-screen overflow-hidden" style={{ background: '#020b18' }}>
+        <ThemeProvider />
+        <BackgroundGrid />
+        <TopNav activeView={activeView} onChange={setActiveView} />
 
-      <div className="flex-1 flex overflow-hidden">
-        {activeView === 'chat' && <Sidebar onNewChat={handleNewChat} />}
+        <div className="flex-1 flex overflow-hidden">
+          {activeView === 'chat' && <Sidebar onNewChat={handleNewChat} />}
 
-        <main className="flex-1 flex overflow-hidden min-w-0">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeView}
-              variants={pageVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              transition={{ duration: 0.18 }}
-              className="flex-1 flex overflow-hidden min-w-0"
-            >
-              {activeView === 'chat' && (
-                <>
-                  <ChatWindow conversationId={activeConversationId} onNewChat={handleNewChat} />
-                  <AnimatePresence>
-                    {showEventPanel && (
-                      <motion.div
-                        key="event-panel"
-                        initial={{ x: 320, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        exit={{ x: 320, opacity: 0 }}
-                        transition={{ type: 'spring', damping: 26, stiffness: 240 }}
-                        className="shrink-0"
-                      >
-                        <EventPanel conversationId={activeConversationId} />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </>
-              )}
-              {activeView === 'models'   && <AiModelsPanel />}
-              {activeView === 'tools'    && <ToolManager />}
-              {activeView === 'settings' && <SettingsPanel />}
-              {activeView === 'rag'      && <RAGPanel />}
-            </motion.div>
-          </AnimatePresence>
-        </main>
+          <main className="flex-1 flex overflow-hidden min-w-0">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeView}
+                variants={pageVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                transition={{ duration: 0.18 }}
+                className="flex-1 flex overflow-hidden min-w-0"
+              >
+                {activeView === 'chat' && (
+                  <>
+                    <ChatWindow conversationId={activeConversationId} onNewChat={handleNewChat} />
+                    <AnimatePresence>
+                      {showEventPanel && (
+                        <motion.div
+                          key="event-panel"
+                          initial={{ x: 320, opacity: 0 }}
+                          animate={{ x: 0, opacity: 1 }}
+                          exit={{ x: 320, opacity: 0 }}
+                          transition={{ type: 'spring', damping: 26, stiffness: 240 }}
+                          className="shrink-0"
+                        >
+                          <EventPanel conversationId={activeConversationId} />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </>
+                )}
+                {activeView === 'models'   && <AiModelsPanel />}
+                {activeView === 'tools'    && <ToolManager />}
+                {activeView === 'settings' && <SettingsPanel />}
+                {activeView === 'rag'      && <RAGPanel />}
+              </motion.div>
+            </AnimatePresence>
+          </main>
+        </div>
+
+        <FormModal />
       </div>
-
-      <FormModal />
-    </div>
+    </>
   )
 }

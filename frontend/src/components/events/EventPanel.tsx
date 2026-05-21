@@ -1,4 +1,3 @@
-import React from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useChatStore } from '../../store/chatStore'
 import type { AgentEvent, EventType } from '../../types'
