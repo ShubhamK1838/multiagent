@@ -102,3 +102,17 @@ export interface AiModelInput {
   options?: Record<string, unknown>
   description?: string | null
 }
+
+export interface ToolExecution {
+  id: string
+  toolName: string
+  toolType: string
+  toolId?: string
+  conversationId?: string
+  inputArgs: Record<string, unknown>
+  resultText?: string
+  errorMessage?: string
+  success: boolean
+  durationMs?: number
+  executedAt: string
+}

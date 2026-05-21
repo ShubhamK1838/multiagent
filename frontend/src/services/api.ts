@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Conversation, ToolDefinition, SystemSetting, FormRequest, AiModel, AiModelInput } from '../types'
+import type { Conversation, ToolDefinition, SystemSetting, FormRequest, AiModel, AiModelInput, ToolExecution } from '../types'
 
 const api = axios.create({ baseURL: '/api/v1' })
 
@@ -29,6 +29,10 @@ export const toolApi = {
   toggle: (id: string) =>
     api.patch<ToolDefinition>(`/tools/${id}/toggle`).then(r => r.data),
   delete: (id: string) => api.delete(`/tools/${id}`),
+  listExecutions: (limit = 50) =>
+    api.get<ToolExecution[]>('/tools/executions', { params: { limit } }).then(r => r.data),
+  getToolExecutions: (toolName: string, limit = 20) =>
+    api.get<ToolExecution[]>(`/tools/${toolName}/executions`, { params: { limit } }).then(r => r.data),
 }
 
 export const settingsApi = {
