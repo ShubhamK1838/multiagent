@@ -4,7 +4,8 @@
 
 @layer base {
   body {
-    @apply bg-gray-950 text-gray-100 font-sans antialiased;
+    @apply text-gray-100 font-sans antialiased;
+    background-color: #020b18;
   }
   * {
     scrollbar-width: thin;
@@ -28,54 +29,89 @@
 
 @layer components {
   .btn-primary {
-    @apply bg-violet-600 hover:bg-violet-500 active:bg-violet-700 text-white px-4 py-2
-           rounded-lg text-sm font-medium transition-all duration-150
-           shadow-lg
+    @apply bg-cyan-500 hover:bg-cyan-400 active:bg-cyan-600 text-gray-950 px-4 py-2
+           rounded text-xs font-mono font-bold tracking-wider transition-all duration-150
+           shadow-lg uppercase
            hover:-translate-y-0.5 active:translate-y-0
            disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0;
+    border: 1px solid rgba(0,212,255,0.6);
+    text-shadow: 0 0 8px rgba(0,212,255,0.5);
   }
   .btn-secondary {
-    @apply bg-gray-700 hover:bg-gray-600 active:bg-gray-800 text-gray-100 px-4 py-2
-           rounded-lg text-sm font-medium transition-all duration-150
-           hover:-translate-y-0.5 active:translate-y-0;
+    @apply bg-transparent hover:bg-cyan-950 text-cyan-400 px-4 py-2
+           rounded text-xs font-mono font-bold tracking-wider transition-all duration-150
+           uppercase hover:-translate-y-0.5 active:translate-y-0;
+    border: 1px solid rgba(0,212,255,0.3);
   }
   .btn-ghost {
-    @apply text-gray-400 hover:text-gray-100 hover:bg-gray-800 px-3 py-2 rounded-lg
-           text-sm transition-all duration-150;
+    @apply text-cyan-600 hover:text-cyan-300 hover:bg-cyan-950 px-3 py-2 rounded
+           text-xs font-mono transition-all duration-150;
   }
   .btn-danger {
-    @apply bg-red-600 hover:bg-red-500 active:bg-red-700 text-white px-4 py-2
-           rounded-lg text-sm font-medium transition-all duration-150
-           shadow-lg hover:-translate-y-0.5;
+    @apply bg-transparent hover:bg-red-950 text-red-400 px-4 py-2
+           rounded text-xs font-mono font-bold tracking-wider transition-all duration-150
+           uppercase hover:-translate-y-0.5;
+    border: 1px solid rgba(248,113,113,0.4);
   }
   .card {
-    @apply bg-gray-900 backdrop-blur-sm border border-gray-800 rounded-xl
-           transition-all duration-200;
+    @apply backdrop-blur-sm border rounded-none transition-all duration-200 relative;
+    background: rgba(7, 21, 32, 0.85);
+    border-color: rgba(0, 212, 255, 0.15);
   }
   .card-hover {
-    @apply hover:border-gray-700 hover:shadow-xl;
+    border-color: rgba(0, 212, 255, 0.35);
+    box-shadow: 0 0 20px -5px rgba(0,212,255,0.15);
   }
   .input {
-    @apply bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100
-           focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500
-           focus:ring-opacity-20 placeholder-gray-500 w-full transition-all duration-150;
+    @apply border rounded px-3 py-2 text-sm text-cyan-100
+           focus:outline-none placeholder-cyan-900 w-full transition-all duration-150
+           font-mono;
+    background: rgba(3, 15, 28, 0.8);
+    border-color: rgba(0,212,255,0.2);
+  }
+  .input:focus {
+    border-color: rgba(0,212,255,0.6);
+    box-shadow: 0 0 0 2px rgba(0,212,255,0.1), 0 0 12px rgba(0,212,255,0.1);
   }
   .label {
-    @apply text-xs font-medium text-gray-400 uppercase tracking-wider;
+    @apply text-xs font-mono text-cyan-600 uppercase tracking-widest;
   }
   .badge {
-    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-mono;
+    @apply inline-flex items-center px-2 py-0.5 rounded-none text-xs font-mono uppercase tracking-wider;
   }
   .chip {
-    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs
-           bg-gray-800 border border-gray-700 text-gray-300;
+    @apply inline-flex items-center gap-1 px-2.5 py-1 text-xs font-mono;
+    border: 1px solid rgba(0,212,255,0.2);
+    color: rgba(0,212,255,0.7);
+    background: rgba(0,212,255,0.05);
   }
   .nav-item {
-    @apply relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium
-           text-gray-400 hover:text-gray-100 transition-colors duration-150;
+    @apply relative flex items-center gap-2 px-4 py-2 text-xs font-mono font-bold
+           tracking-widest uppercase text-cyan-700 hover:text-cyan-300 transition-colors duration-150;
   }
   .nav-item-active {
-    @apply text-gray-100;
+    @apply text-cyan-300;
+  }
+  .hud-panel {
+    @apply relative;
+    background: rgba(7, 21, 32, 0.9);
+    border: 1px solid rgba(0, 212, 255, 0.2);
+  }
+  .hud-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 2px, rgba(0,212,255,0.012) 2px, rgba(0,212,255,0.012) 4px
+    );
+  }
+  .jarvis-text {
+    @apply font-mono text-cyan-400 tracking-wider;
+    text-shadow: 0 0 10px rgba(0,212,255,0.5);
+  }
+  .glow-cyan {
+    box-shadow: 0 0 24px -4px rgba(0,212,255,0.4);
   }
   .glow-violet {
     box-shadow: 0 0 24px -4px rgba(139, 92, 246, 0.4);
@@ -96,14 +132,14 @@
     100% { background-position: -200% 0; }
   }
 
-  /* Live gradient — slowly shifting violet→cyan→pink for techie surfaces */
+  /* Live gradient — cyan-dominant JARVIS palette */
   .live-gradient {
-    background-image: linear-gradient(120deg, #8b5cf6, #22d3ee, #ec4899, #8b5cf6);
+    background-image: linear-gradient(120deg, #00d4ff, #0080ff, #7b2fff, #00d4ff);
     background-size: 300% 300%;
     animation: live-gradient-pan 12s ease infinite;
   }
   .live-gradient-text {
-    background-image: linear-gradient(120deg, #c4b5fd, #67e8f9, #f9a8d4, #c4b5fd);
+    background-image: linear-gradient(120deg, #67e8f9, #60a5fa, #c4b5fd, #67e8f9);
     background-size: 300% 300%;
     background-clip: text;
     -webkit-background-clip: text;
@@ -132,6 +168,19 @@
     0%   { background-position:   0% 50%; }
     50%  { background-position: 100% 50%; }
     100% { background-position:   0% 50%; }
+  }
+  .scanline-overlay {
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 2px, rgba(0,212,255,0.015) 2px, rgba(0,212,255,0.015) 4px
+    );
+    pointer-events: none;
+  }
+  .data-stream-text {
+    font-family: 'JetBrains Mono', monospace;
+    color: rgba(0,212,255,0.6);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
   }
 }
 

@@ -47,8 +47,48 @@ export default {
           blue: '#60a5fa',
           purple: '#c084fc',
           cyan: '#22d3ee',
-        }
-      }
+        },
+        jarvis: {
+          bg: '#020b18',
+          navy: '#030f1c',
+          panel: '#071520',
+          border: '#0d2d40',
+          cyan: '#00d4ff',
+          'cyan-dim': '#00a8cc',
+          'cyan-glow': 'rgba(0,212,255,0.3)',
+          blue: '#0080ff',
+          'blue-dim': '#005acc',
+          text: '#b0e8f0',
+          'text-dim': '#4a7a8a',
+          'text-bright': '#e0f8ff',
+          alert: '#ff6b35',
+          success: '#00ff88',
+          warning: '#ffcc00',
+        },
+      },
+      keyframes: {
+        'scan': {
+          '0%': { transform: 'translateY(-100%)' },
+          '100%': { transform: 'translateY(100vh)' },
+        },
+        'pulse-ring': {
+          '0%, 100%': { opacity: '0.8', transform: 'scale(1)' },
+          '50%': { opacity: '0.3', transform: 'scale(1.05)' },
+        },
+        'blink': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0' },
+        },
+        'data-cascade': {
+          '0%': { backgroundPosition: '0% 0%' },
+          '100%': { backgroundPosition: '0% 100%' },
+        },
+      },
+      animation: {
+        'scan': 'scan 4s linear infinite',
+        'pulse-ring': 'pulse-ring 2s ease-in-out infinite',
+        'blink': 'blink 1s step-end infinite',
+      },
     }
   },
   plugins: []
