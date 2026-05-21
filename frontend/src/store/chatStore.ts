@@ -30,6 +30,7 @@ interface ChatStore {
   setPendingForm: (form: FormRequest | null) => void
   setThinking: (conversationId: string, thinking: boolean) => void
   clearEvents: (conversationId: string) => void
+  clearThinkingMessages: (conversationId: string) => void
 }
 
 export const useChatStore = create<ChatStore>()((set, get) => ({
@@ -123,4 +124,11 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     set((s) => ({ isThinking: { ...s.isThinking, [conversationId]: thinking } })),
   clearEvents: (conversationId) =>
     set((s) => ({ events: { ...s.events, [conversationId]: [] } })),
+  clearThinkingMessages: (conversationId) =>
+    set((s) => ({
+      messages: {
+        ...s.messages,
+        [conversationId]: (s.messages[conversationId] ?? []).filter(m => m.role !== 'thinking'),
+      },
+    })),
 }))

@@ -27,11 +27,12 @@ export function useSSE(conversationId: string | null) {
           break
         case 'AGENT_END':
         case 'RESPONSE_END':
+          store.clearThinkingMessages(conversationId)
           if (type === 'AGENT_END' && event.content && !store.streamingContent[conversationId]) {
             store.addMessage(conversationId, {
               id: Date.now().toString() + Math.random(),
               role: 'assistant',
-              content: event.content
+              content: event.content,
             })
           } else {
             store.finalizeStream(conversationId)
@@ -40,14 +41,17 @@ export function useSSE(conversationId: string | null) {
           break
         case 'AGENT_START':
           store.setThinking(conversationId, true)
+          store.clearThinkingMessages(conversationId)
           break
         case 'THINKING':
           store.setThinking(conversationId, true)
+          // Replace (not accumulate) — clear old thinking messages then add one
+          store.clearThinkingMessages(conversationId)
           if (event.content && event.content.trim()) {
             store.addMessage(conversationId, {
-              id: Date.now().toString() + Math.random(),
+              id: 'thinking-current',
               role: 'thinking',
-              content: event.content
+              content: event.content,
             })
           }
           break
