@@ -45,6 +45,9 @@ public class FormController {
         formRequestRepository.save(formRequest);
 
         String conversationId = formRequest.getConversationId().toString();
+        eventBus.publish(AgentEvent.of(EventType.FORM_SUBMITTED, conversationId,
+                "Form submitted: " + formData.size() + " fields",
+                Map.of("formId", formId.toString(), "fieldCount", formData.size())));
         eventBus.publish(AgentEvent.of(EventType.FORM_RESOLVED, conversationId,
                 "Form submitted", Map.of("formId", formId.toString())));
 
