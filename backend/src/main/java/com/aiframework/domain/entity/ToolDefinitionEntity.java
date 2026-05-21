@@ -36,10 +36,10 @@ public class ToolDefinitionEntity {
     @Column(columnDefinition = "jsonb", nullable = false)
     private Map<String, Object> handlerConfig;
 
-    @Column(nullable = false)
+    @Column(name = "is_enabled", nullable = false)
     private boolean enabled;
 
-    @Column(nullable = false)
+    @Column(name = "requires_confirmation", nullable = false)
     private boolean requiresConfirmation;
 
     @Column(nullable = false)

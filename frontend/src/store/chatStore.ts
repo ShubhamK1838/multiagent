@@ -22,6 +22,7 @@ interface ChatStore {
   addConversation: (conv: Conversation) => void
   addMessage: (conversationId: string, message: ChatMessage) => void
   appendToken: (conversationId: string, token: string) => void
+  resetStream: (conversationId: string) => void
   finalizeStream: (conversationId: string) => void
   addEvent: (event: AgentEvent) => void
   setPendingForm: (form: FormRequest | null) => void
@@ -57,6 +58,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         ...s.streamingContent,
         [conversationId]: (s.streamingContent[conversationId] ?? '') + token,
       },
+    })),
+
+  resetStream: (conversationId) =>
+    set((s) => ({
+      streamingContent: { ...s.streamingContent, [conversationId]: '' },
     })),
 
   finalizeStream: (conversationId) => {

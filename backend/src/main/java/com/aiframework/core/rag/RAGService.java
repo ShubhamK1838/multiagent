@@ -4,9 +4,9 @@ import com.aiframework.domain.entity.DocumentChunk;
 import com.aiframework.domain.repository.DocumentChunkRepository;
 import com.aiframework.service.SettingsService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -14,12 +14,19 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class RAGService {
 
     private final EmbeddingModel embeddingModel;
     private final DocumentChunkRepository documentChunkRepository;
     private final SettingsService settingsService;
+
+    public RAGService(@Qualifier("ollamaEmbeddingModel") EmbeddingModel embeddingModel,
+                      DocumentChunkRepository documentChunkRepository,
+                      SettingsService settingsService) {
+        this.embeddingModel = embeddingModel;
+        this.documentChunkRepository = documentChunkRepository;
+        this.settingsService = settingsService;
+    }
 
     public String search(String query) {
         try {

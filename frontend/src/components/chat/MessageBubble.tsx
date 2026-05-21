@@ -1,30 +1,42 @@
 import React from 'react'
+import { motion } from 'framer-motion'
 import ReactMarkdown from 'react-markdown'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { clsx } from 'clsx'
+import { Bot, User } from 'lucide-react'
 
 interface MessageBubbleProps {
   role: 'user' | 'assistant'
   content: string
   streaming?: boolean
+  animate?: boolean
 }
 
-export function MessageBubble({ role, content, streaming }: MessageBubbleProps) {
+export function MessageBubble({ role, content, streaming, animate = true }: MessageBubbleProps) {
+  const isUser = role === 'user'
+  const initial = animate ? { opacity: 0, y: 8, scale: 0.98 } : false
   return (
-    <div className={clsx('flex gap-3 mb-4', role === 'user' ? 'flex-row-reverse' : 'flex-row')}>
+    <motion.div
+      initial={initial}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ type: 'spring', damping: 24, stiffness: 320 }}
+      className={clsx('flex gap-3 mb-4', isUser ? 'flex-row-reverse' : 'flex-row')}
+    >
       <div className={clsx(
-        'w-7 h-7 rounded-lg flex items-center justify-center text-xs font-mono font-bold shrink-0',
-        role === 'user' ? 'bg-violet-600 text-white' : 'bg-gray-700 text-green-400'
+        'w-7 h-7 rounded-lg flex items-center justify-center shrink-0',
+        isUser
+          ? 'bg-violet-600 text-white'
+          : 'bg-gray-700 text-violet-300'
       )}>
-        {role === 'user' ? 'U' : 'AI'}
+        {isUser ? <User size={14} /> : <Bot size={14} />}
       </div>
 
       <div className={clsx(
-        'max-w-[80%] rounded-xl px-4 py-3 text-sm',
-        role === 'user'
-          ? 'bg-violet-600/20 border border-violet-500/30 text-gray-100'
-          : 'bg-gray-800 border border-gray-700 text-gray-100'
+        'max-w-[80%] rounded-2xl px-4 py-3 text-sm',
+        isUser
+          ? 'bg-violet-600/15 border border-violet-500/30 text-gray-100 rounded-tr-md'
+          : 'bg-gray-800/70 border border-gray-700 text-gray-100 rounded-tl-md'
       )}>
         {role === 'assistant' ? (
           <ReactMarkdown
@@ -43,22 +55,26 @@ export function MessageBubble({ role, content, streaming }: MessageBubbleProps) 
                     {String(children).replace(/\n$/, '')}
                   </SyntaxHighlighter>
                 ) : (
-                  <code className="bg-gray-700 px-1.5 py-0.5 rounded text-xs font-mono text-green-400">
+                  <code className="bg-gray-700/70 px-1.5 py-0.5 rounded text-xs font-mono text-emerald-300">
                     {children}
                   </code>
                 )
-              }
+              },
             }}
           >
             {content}
           </ReactMarkdown>
         ) : (
-          <p className="whitespace-pre-wrap">{content}</p>
+          <p className="whitespace-pre-wrap break-words">{content}</p>
         )}
         {streaming && (
-          <span className="inline-block w-1.5 h-4 bg-violet-400 animate-pulse ml-0.5 align-middle" />
+          <motion.span
+            className="inline-block w-1.5 h-4 bg-violet-400 ml-0.5 align-middle"
+            animate={{ opacity: [1, 0.2, 1] }}
+            transition={{ duration: 1, repeat: Infinity, ease: 'easeInOut' }}
+          />
         )}
       </div>
-    </div>
+    </motion.div>
   )
 }

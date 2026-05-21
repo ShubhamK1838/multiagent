@@ -22,6 +22,9 @@ export function useSSE(conversationId: string | null) {
         case 'TOKEN':
           store.appendToken(conversationId, event.content)
           break
+        case 'STREAM_RESET':
+          store.resetStream(conversationId)
+          break
         case 'AGENT_END':
         case 'RESPONSE_END':
           store.finalizeStream(conversationId)
@@ -48,8 +51,8 @@ export function useSSE(conversationId: string | null) {
 
     const eventTypes = [
       'THINKING', 'TOOL_CALL', 'TOOL_RESULT', 'TOOL_ERROR',
-      'FORM_REQUEST', 'FORM_RESOLVED', 'TOKEN', 'RESPONSE_START',
-      'RESPONSE_END', 'AGENT_START', 'AGENT_END', 'ERROR',
+      'FORM_REQUEST', 'FORM_RESOLVED', 'TOKEN', 'STREAM_RESET',
+      'RESPONSE_START', 'RESPONSE_END', 'AGENT_START', 'AGENT_END', 'ERROR',
       'ITERATION_START', 'ITERATION_END'
     ]
 

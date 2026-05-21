@@ -8,6 +8,7 @@ public enum EventType {
     FORM_REQUEST,
     FORM_RESOLVED,
     TOKEN,
+    STREAM_RESET,
     RESPONSE_START,
     RESPONSE_END,
     AGENT_START,

@@ -1,6 +1,5 @@
 package com.aiframework.core.tool;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -9,7 +8,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Component
-@RequiredArgsConstructor
 public class ToolHandlerRegistry {
 
     private final Map<String, ToolHandler> handlers;

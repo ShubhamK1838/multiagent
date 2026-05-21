@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Conversation, ToolDefinition, SystemSetting, FormRequest } from '../types'
+import type { Conversation, ToolDefinition, SystemSetting, FormRequest, AiModel, AiModelInput } from '../types'
 
 const api = axios.create({ baseURL: '/api/v1' })
 
@@ -47,4 +47,16 @@ export const formApi = {
     api.get<FormRequest>(`/forms/${formId}`).then(r => r.data),
   submit: (formId: string, data: Record<string, unknown>) =>
     api.post(`/forms/${formId}/submit`, data).then(r => r.data),
+}
+
+export const aiModelApi = {
+  list: () => api.get<AiModel[]>('/ai-models').then(r => r.data),
+  listEnabled: () => api.get<AiModel[]>('/ai-models/enabled').then(r => r.data),
+  getDefault: () => api.get<AiModel>('/ai-models/default').then(r => r.data),
+  get: (id: string) => api.get<AiModel>(`/ai-models/${id}`).then(r => r.data),
+  create: (input: AiModelInput) => api.post<AiModel>('/ai-models', input).then(r => r.data),
+  update: (id: string, input: Partial<AiModelInput>) =>
+    api.put<AiModel>(`/ai-models/${id}`, input).then(r => r.data),
+  delete: (id: string) => api.delete(`/ai-models/${id}`),
+  setDefault: (id: string) => api.post<AiModel>(`/ai-models/${id}/default`).then(r => r.data),
 }

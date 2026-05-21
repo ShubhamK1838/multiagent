@@ -21,6 +21,7 @@ export type EventType =
   | 'FORM_REQUEST'
   | 'FORM_RESOLVED'
   | 'TOKEN'
+  | 'STREAM_RESET'
   | 'RESPONSE_START'
   | 'RESPONSE_END'
   | 'AGENT_START'
@@ -67,4 +68,36 @@ export interface FormRequest {
   status: 'PENDING' | 'RESOLVED'
   response?: Record<string, unknown>
   createdAt: string
+}
+
+export type AiModelProvider = 'OPENAI' | 'OLLAMA'
+
+export interface AiModel {
+  id: string
+  name: string
+  provider: AiModelProvider
+  modelId: string
+  baseUrl: string | null
+  hasApiKey: boolean
+  temperature: number
+  maxTokens: number
+  default: boolean
+  enabled: boolean
+  options: Record<string, unknown>
+  description: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AiModelInput {
+  name: string
+  provider: AiModelProvider
+  modelId: string
+  baseUrl?: string | null
+  apiKey?: string | null
+  temperature: number
+  maxTokens: number
+  isEnabled?: boolean
+  options?: Record<string, unknown>
+  description?: string | null
 }
