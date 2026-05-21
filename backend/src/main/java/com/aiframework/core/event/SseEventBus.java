@@ -14,47 +14,47 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class AgentEventPublisher {
+public class SseEventBus implements EventBus {
 
     private final Map<String, Sinks.Many<AgentEvent>> sinks = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper;
 
-    public Sinks.Many<AgentEvent> createSink(String conversationId) {
-        Sinks.Many<AgentEvent> sink = Sinks.many().multicast().onBackpressureBuffer();
-        sinks.put(conversationId, sink);
-        return sink;
-    }
-
-    public Flux<AgentEvent> subscribe(String conversationId) {
-        return sinks.computeIfAbsent(conversationId,
-                id -> Sinks.many().multicast().onBackpressureBuffer()).asFlux();
-    }
-
+    @Override
     public void publish(AgentEvent event) {
         Sinks.Many<AgentEvent> sink = sinks.get(event.getConversationId());
         if (sink != null) {
             sink.tryEmitNext(event);
         }
-        log.debug("Event: {} - {}", event.getType(), event.getContent());
+        log.debug("Event published: {} for conv={}", event.getType(), event.getConversationId());
     }
 
+    @Override
+    public Flux<AgentEvent> subscribe(String conversationId) {
+        return sinks.computeIfAbsent(conversationId,
+                id -> Sinks.many().multicast().onBackpressureBuffer()).asFlux();
+    }
+
+    @Override
     public void publishThinking(String conversationId, String thought) {
         publish(AgentEvent.of(EventType.THINKING, conversationId, thought));
     }
 
+    @Override
     public void publishToolCall(String conversationId, String toolName, Map<String, Object> args) {
         publish(AgentEvent.of(EventType.TOOL_CALL, conversationId, toolName, args));
     }
 
+    @Override
     public void publishToolResult(String conversationId, String toolName, String result) {
-        publish(AgentEvent.of(EventType.TOOL_RESULT, conversationId, result,
-                Map.of("tool", toolName)));
+        publish(AgentEvent.of(EventType.TOOL_RESULT, conversationId, result, Map.of("tool", toolName)));
     }
 
+    @Override
     public void publishToken(String conversationId, String token) {
         publish(AgentEvent.of(EventType.TOKEN, conversationId, token));
     }
 
+    @Override
     public void publishFormRequest(String conversationId, String formId, Object schema) {
         try {
             String schemaJson = objectMapper.writeValueAsString(schema);
@@ -62,13 +62,6 @@ public class AgentEventPublisher {
                     Map.of("formId", formId)));
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize form schema", e);
-        }
-    }
-
-    public void complete(String conversationId) {
-        Sinks.Many<AgentEvent> sink = sinks.remove(conversationId + ":session");
-        if (sink != null) {
-            sink.tryEmitComplete();
         }
     }
 }

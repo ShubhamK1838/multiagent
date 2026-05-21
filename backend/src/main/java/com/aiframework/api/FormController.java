@@ -2,7 +2,7 @@ package com.aiframework.api;
 
 import com.aiframework.core.agent.AgentOrchestrator;
 import com.aiframework.core.event.AgentEvent;
-import com.aiframework.core.event.AgentEventPublisher;
+import com.aiframework.core.event.EventBus;
 import com.aiframework.core.event.EventType;
 import com.aiframework.domain.entity.FormRequest;
 import com.aiframework.domain.repository.FormRequestRepository;
@@ -21,7 +21,7 @@ import java.util.UUID;
 public class FormController {
 
     private final FormRequestRepository formRequestRepository;
-    private final AgentEventPublisher eventPublisher;
+    private final EventBus eventBus;
     private final AgentOrchestrator agentOrchestrator;
     private final ConversationService conversationService;
 
@@ -45,10 +45,9 @@ public class FormController {
         formRequestRepository.save(formRequest);
 
         String conversationId = formRequest.getConversationId().toString();
-        eventPublisher.publish(AgentEvent.of(EventType.FORM_RESOLVED, conversationId,
+        eventBus.publish(AgentEvent.of(EventType.FORM_RESOLVED, conversationId,
                 "Form submitted", Map.of("formId", formId.toString())));
 
-        // Resume agent with form data
         var history = conversationService.getHistory(formRequest.getConversationId());
         String formDataMessage = "User provided form data: " + formData;
         agentOrchestrator.run(conversationId, history, formDataMessage);

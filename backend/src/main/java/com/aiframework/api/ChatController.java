@@ -1,8 +1,7 @@
 package com.aiframework.api;
 
 import com.aiframework.core.agent.AgentOrchestrator;
-import com.aiframework.core.event.AgentEvent;
-import com.aiframework.core.event.AgentEventPublisher;
+import com.aiframework.core.event.EventBus;
 import com.aiframework.domain.entity.Conversation;
 import com.aiframework.service.ConversationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,7 +25,7 @@ public class ChatController {
 
     private final ConversationService conversationService;
     private final AgentOrchestrator agentOrchestrator;
-    private final AgentEventPublisher eventPublisher;
+    private final EventBus eventBus;
     private final ObjectMapper objectMapper;
 
     @PostMapping("/conversations")
@@ -61,7 +60,7 @@ public class ChatController {
 
     @GetMapping(value = "/conversations/{conversationId}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<String>> streamEvents(@PathVariable String conversationId) {
-        return eventPublisher.subscribe(conversationId)
+        return eventBus.subscribe(conversationId)
                 .map(event -> {
                     try {
                         String data = objectMapper.writeValueAsString(event);
