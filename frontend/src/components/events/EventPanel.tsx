@@ -1,42 +1,39 @@
 import React from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { clsx } from 'clsx'
 import { useChatStore } from '../../store/chatStore'
 import type { AgentEvent, EventType } from '../../types'
 import { formatDistanceToNow } from 'date-fns'
-import {
-  Brain, Wrench, CheckCircle, AlertCircle,
-  FileInput, ChevronRight, Zap, Activity
-} from 'lucide-react'
-import { LoadingDots } from '../shared/LoadingDots'
 
 interface EventPanelProps {
   conversationId: string | null
 }
 
-const EVENT_CONFIG: Record<EventType, { label: string; color: string; icon: React.ElementType }> = {
-  THINKING:        { label: 'Thinking',  color: 'text-yellow-300',  icon: Brain },
-  TOOL_CALL:       { label: 'Tool call', color: 'text-blue-300',    icon: Wrench },
-  TOOL_RESULT:     { label: 'Result',    color: 'text-emerald-300', icon: CheckCircle },
-  TOOL_ERROR:      { label: 'Error',     color: 'text-red-300',     icon: AlertCircle },
-  FORM_REQUEST:    { label: 'Form',      color: 'text-purple-300',  icon: FileInput },
-  FORM_RESOLVED:   { label: 'Form OK',   color: 'text-emerald-300', icon: CheckCircle },
-  FORM_SUBMITTED:  { label: 'Submitted', color: 'text-emerald-300', icon: CheckCircle },
-  TOKEN:           { label: 'Token',     color: 'text-gray-500',    icon: ChevronRight },
-  STREAM_RESET:    { label: 'Reset',     color: 'text-gray-500',    icon: ChevronRight },
-  RESPONSE_START:  { label: 'Start',     color: 'text-violet-300',  icon: Zap },
-  RESPONSE_END:    { label: 'End',       color: 'text-violet-300',  icon: Zap },
-  AGENT_START:     { label: 'Agent',     color: 'text-cyan-300',    icon: Zap },
-  AGENT_END:       { label: 'Done',      color: 'text-cyan-300',    icon: CheckCircle },
-  ERROR:           { label: 'Error',     color: 'text-red-300',     icon: AlertCircle },
-  ITERATION_START: { label: 'Iter',      color: 'text-orange-300',  icon: ChevronRight },
-  ITERATION_END:   { label: 'Iter',      color: 'text-orange-300',  icon: CheckCircle },
+const EVENT_CONFIG: Record<EventType, { label: string; color: string; dimColor: string }> = {
+  THINKING:        { label: 'PROC',     color: '#ffd700',              dimColor: 'rgba(255,215,0,0.5)' },
+  TOOL_CALL:       { label: 'EXEC',     color: '#0080ff',              dimColor: 'rgba(0,128,255,0.5)' },
+  TOOL_RESULT:     { label: 'RESULT',   color: '#00d4ff',              dimColor: 'rgba(0,212,255,0.5)' },
+  TOOL_ERROR:      { label: 'ERROR',    color: '#ff4444',              dimColor: 'rgba(255,68,68,0.5)' },
+  FORM_REQUEST:    { label: 'FORM',     color: '#7b2fff',              dimColor: 'rgba(123,47,255,0.5)' },
+  FORM_RESOLVED:   { label: 'RESOLVED', color: '#00ff88',             dimColor: 'rgba(0,255,136,0.5)' },
+  FORM_SUBMITTED:  { label: 'SUBMIT',  color: '#00ff88',              dimColor: 'rgba(0,255,136,0.5)' },
+  TOKEN:           { label: 'TOKEN',   color: 'rgba(0,212,255,0.2)',  dimColor: 'rgba(0,212,255,0.1)' },
+  STREAM_RESET:    { label: 'RESET',   color: 'rgba(0,212,255,0.3)',  dimColor: 'rgba(0,212,255,0.15)' },
+  RESPONSE_START:  { label: 'START',   color: '#7b2fff',              dimColor: 'rgba(123,47,255,0.5)' },
+  RESPONSE_END:    { label: 'END',     color: '#7b2fff',              dimColor: 'rgba(123,47,255,0.5)' },
+  AGENT_START:     { label: 'AGENT',   color: '#00d4ff',              dimColor: 'rgba(0,212,255,0.5)' },
+  AGENT_END:       { label: 'DONE',    color: '#00d4ff',              dimColor: 'rgba(0,212,255,0.5)' },
+  ERROR:           { label: 'ERROR',   color: '#ff4444',              dimColor: 'rgba(255,68,68,0.5)' },
+  ITERATION_START: { label: 'ITER',    color: '#ff8800',              dimColor: 'rgba(255,136,0,0.5)' },
+  ITERATION_END:   { label: 'ITER',    color: '#ff8800',              dimColor: 'rgba(255,136,0,0.5)' },
 }
 
 function EventItem({ event }: { event: AgentEvent }) {
   if (event.type === 'TOKEN') return null
-  const config = EVENT_CONFIG[event.type] ?? { label: event.type, color: 'text-gray-400', icon: ChevronRight }
-  const Icon = config.icon
+  const config = EVENT_CONFIG[event.type] ?? {
+    label: event.type,
+    color: 'rgba(0,212,255,0.6)',
+    dimColor: 'rgba(0,212,255,0.3)',
+  }
 
   return (
     <motion.div
@@ -45,33 +42,51 @@ function EventItem({ event }: { event: AgentEvent }) {
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0 }}
       transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-      className="flex gap-2 py-2 border-b border-gray-800/60 last:border-0"
+      className="py-2"
+      style={{ borderBottom: '1px solid rgba(0,212,255,0.06)' }}
     >
-      <Icon size={12} className={clsx('mt-0.5 shrink-0', config.color)} />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className={clsx('text-xs font-mono font-semibold', config.color)}>
-            {config.label}
-          </span>
-          <span className="text-[10px] text-gray-600 font-mono">
-            {formatDistanceToNow(new Date(event.timestamp), { addSuffix: true })}
-          </span>
-        </div>
-        {event.content && event.type !== 'RESPONSE_START' && event.type !== 'RESPONSE_END' && (
-          <p className="text-xs text-gray-400 mt-0.5 line-clamp-2 break-words" title={event.content}>
-            {event.content}
-          </p>
-        )}
-        {event.metadata && Object.keys(event.metadata).length > 0 && (
-          <div className="mt-1.5 flex flex-wrap gap-1">
-            {Object.entries(event.metadata).slice(0, 3).map(([k, v]) => (
-              <span key={k} className="badge bg-gray-800/80 text-gray-400 border border-gray-700">
-                {k}: {String(v).slice(0, 24)}
-              </span>
-            ))}
-          </div>
-        )}
+      <div className="flex items-center gap-2 mb-0.5">
+        {/* Type chip */}
+        <span
+          className="text-[9px] font-mono font-bold tracking-wider uppercase px-1.5 py-0.5"
+          style={{
+            color: config.color,
+            background: `${config.color}11`,
+            border: `1px solid ${config.color}33`,
+          }}
+        >
+          {config.label}
+        </span>
+        <span className="text-[9px] font-mono" style={{ color: 'rgba(0,212,255,0.25)' }}>
+          {formatDistanceToNow(new Date(event.timestamp), { addSuffix: true })}
+        </span>
       </div>
+      {event.content && event.type !== 'RESPONSE_START' && event.type !== 'RESPONSE_END' && (
+        <p
+          className="text-[10px] font-mono mt-0.5 line-clamp-2 break-words pl-0.5"
+          style={{ color: 'rgba(0,212,255,0.45)' }}
+          title={event.content}
+        >
+          {event.content}
+        </p>
+      )}
+      {event.metadata && Object.keys(event.metadata).length > 0 && (
+        <div className="mt-1 flex flex-wrap gap-1">
+          {Object.entries(event.metadata).slice(0, 3).map(([k, v]) => (
+            <span
+              key={k}
+              className="text-[9px] font-mono px-1.5 py-0.5"
+              style={{
+                background: 'rgba(0,212,255,0.04)',
+                border: '1px solid rgba(0,212,255,0.1)',
+                color: 'rgba(0,212,255,0.4)',
+              }}
+            >
+              {k}: {String(v).slice(0, 24)}
+            </span>
+          ))}
+        </div>
+      )}
     </motion.div>
   )
 }
@@ -83,26 +98,67 @@ export function EventPanel({ conversationId }: EventPanelProps) {
   const visibleEvents = events.filter(e => e.type !== 'TOKEN')
 
   return (
-    <aside className="w-80 bg-gray-900/60 backdrop-blur-sm border-l border-gray-800 flex flex-col h-screen shrink-0">
-      <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-gray-300">
-          <Activity size={14} className="text-violet-400" />
-          <span className="text-xs font-mono font-semibold uppercase tracking-wider">
-            Activity
+    <aside
+      className="w-80 flex flex-col h-screen shrink-0"
+      style={{
+        background: 'rgba(3,15,28,0.9)',
+        borderLeft: '1px solid rgba(0,212,255,0.1)',
+        backdropFilter: 'blur(8px)',
+      }}
+    >
+      {/* Header */}
+      <div
+        className="px-4 py-3 flex items-center justify-between shrink-0"
+        style={{ borderBottom: '1px solid rgba(0,212,255,0.1)' }}
+      >
+        <div className="flex items-center gap-2">
+          {/* Radio pulse icon */}
+          <div className="relative w-3.5 h-3.5 flex items-center justify-center">
+            <motion.div
+              className="absolute inset-0 rounded-full"
+              style={{ border: '1px solid rgba(0,212,255,0.4)' }}
+              animate={{ scale: [1, 1.6, 1], opacity: [0.6, 0, 0.6] }}
+              transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
+            />
+            <div
+              className="w-1.5 h-1.5 rounded-full"
+              style={{ background: '#00d4ff' }}
+            />
+          </div>
+          <span
+            className="text-[10px] font-mono font-bold tracking-widest uppercase"
+            style={{ color: 'rgba(0,212,255,0.7)' }}
+          >
+            MISSION LOG
           </span>
         </div>
         {isThinking && (
-          <div className="flex items-center gap-1.5 text-yellow-300">
-            <LoadingDots color="bg-yellow-300" size={4} />
-            <span className="text-[11px] font-mono">running</span>
+          <div className="flex items-center gap-1.5">
+            <motion.span
+              className="w-1.5 h-1.5 rounded-full"
+              style={{ background: '#00ff88' }}
+              animate={{ opacity: [1, 0.2, 1] }}
+              transition={{ duration: 0.7, repeat: Infinity }}
+            />
+            <span
+              className="text-[9px] font-mono tracking-widest uppercase"
+              style={{ color: '#00ff88' }}
+            >
+              ACTIVE
+            </span>
           </div>
         )}
       </div>
 
+      {/* Events list */}
       <div className="flex-1 overflow-y-auto px-3 py-2">
         {visibleEvents.length === 0 ? (
-          <p className="text-xs text-gray-600 font-mono text-center py-10">
-            No events yet.<br />Send a message to start.
+          <p
+            className="text-[10px] font-mono tracking-wider text-center py-10"
+            style={{ color: 'rgba(0,212,255,0.2)' }}
+          >
+            NO EVENTS LOGGED<br />
+            <span style={{ color: 'rgba(0,212,255,0.12)' }}>AWAITING TRANSMISSION...</span>
           </p>
         ) : (
           <AnimatePresence initial={false}>
@@ -113,9 +169,16 @@ export function EventPanel({ conversationId }: EventPanelProps) {
         )}
       </div>
 
-      <div className="px-4 py-2 border-t border-gray-800 flex items-center justify-between">
-        <span className="text-[11px] font-mono text-gray-600">
-          {visibleEvents.length} event{visibleEvents.length === 1 ? '' : 's'}
+      {/* Footer */}
+      <div
+        className="px-4 py-2 flex items-center justify-between shrink-0"
+        style={{ borderTop: '1px solid rgba(0,212,255,0.08)' }}
+      >
+        <span
+          className="text-[9px] font-mono tracking-widest uppercase"
+          style={{ color: 'rgba(0,212,255,0.25)' }}
+        >
+          {visibleEvents.length} EVENT{visibleEvents.length === 1 ? '' : 'S'} LOGGED
         </span>
       </div>
     </aside>

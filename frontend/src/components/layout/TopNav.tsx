@@ -1,9 +1,8 @@
-import React from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { clsx } from 'clsx'
-import {
-  MessageSquare, Wrench, Settings, Database, Sparkles
-} from 'lucide-react'
+import { MessageSquare, Wrench, Settings, Database, Sparkles } from 'lucide-react'
+import { ArcReactor } from '../shared/ArcReactor'
 
 export type View = 'chat' | 'models' | 'tools' | 'settings' | 'rag'
 
@@ -13,34 +12,45 @@ interface TopNavProps {
 }
 
 const ITEMS: { id: View; label: string; icon: React.ElementType }[] = [
-  { id: 'chat',     label: 'Chat',      icon: MessageSquare },
-  { id: 'models',   label: 'Models',    icon: Sparkles },
-  { id: 'tools',    label: 'Tools',     icon: Wrench },
-  { id: 'rag',      label: 'Knowledge', icon: Database },
-  { id: 'settings', label: 'Settings',  icon: Settings },
+  { id: 'chat',     label: 'COMMS',    icon: MessageSquare },
+  { id: 'models',   label: 'NEURAL',   icon: Sparkles },
+  { id: 'tools',    label: 'ARSENAL',  icon: Wrench },
+  { id: 'rag',      label: 'KNOWLEDGE',icon: Database },
+  { id: 'settings', label: 'SYSTEMS',  icon: Settings },
 ]
 
 export function TopNav({ activeView, onChange }: TopNavProps) {
-  return (
-    <header className="relative h-14 border-b border-gray-800 bg-gray-950/70 backdrop-blur-sm flex items-center px-4 gap-4 shrink-0 z-20 overflow-hidden">
-      {/* Slim live gradient ribbon at the bottom edge of the header */}
-      <span aria-hidden className="live-gradient absolute left-0 right-0 bottom-0 h-[1.5px] opacity-70" />
+  const [time, setTime] = useState('')
 
-      <div className="flex items-center gap-2 mr-4 relative">
-        <motion.div
-          className="w-7 h-7 rounded-lg live-gradient flex items-center justify-center text-white shadow-lg shadow-violet-600/30"
-          animate={{ rotate: [0, 360] }}
-          transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-        >
-          <Sparkles size={14} />
-        </motion.div>
+  useEffect(() => {
+    const tick = () => setTime(new Date().toLocaleTimeString('en-US', { hour12: false }))
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  return (
+    <header className="relative h-12 border-b flex items-center px-4 gap-4 shrink-0 z-20 overflow-hidden"
+      style={{ background: 'rgba(2, 11, 24, 0.95)', borderColor: 'rgba(0,212,255,0.15)' }}
+    >
+      {/* Bottom gradient line */}
+      <span aria-hidden className="live-gradient absolute left-0 right-0 bottom-0 h-[1px] opacity-60" />
+
+      {/* JARVIS Logo */}
+      <div className="flex items-center gap-2.5 mr-4">
+        <ArcReactor size={26} />
         <div className="leading-tight">
-          <p className="text-sm font-semibold live-gradient-text">AI Framework</p>
-          <p className="text-[10px] font-mono text-gray-500">v1.0.0</p>
+          <p className="text-xs font-mono font-bold tracking-[0.2em]" style={{ color: '#00d4ff', textShadow: '0 0 10px rgba(0,212,255,0.5)' }}>
+            J.A.R.V.I.S.
+          </p>
+          <p className="text-[9px] font-mono" style={{ color: 'rgba(0,212,255,0.4)' }}>
+            v4.7.0 · ONLINE
+          </p>
         </div>
       </div>
 
-      <nav className="flex items-center gap-1">
+      {/* Nav */}
+      <nav className="flex items-center gap-0.5">
         {ITEMS.map(({ id, label, icon: Icon }) => {
           const active = activeView === id
           return (
@@ -48,28 +58,42 @@ export function TopNav({ activeView, onChange }: TopNavProps) {
               key={id}
               onClick={() => onChange(id)}
               className={clsx(
-                'relative flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors',
-                active ? 'text-white' : 'text-gray-400 hover:text-gray-200'
+                'relative flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-mono font-bold tracking-widest transition-colors',
+                active ? 'text-cyan-300' : 'text-cyan-800 hover:text-cyan-500'
               )}
             >
               {active && (
                 <motion.span
                   layoutId="topnav-bg"
-                  className="absolute inset-0 rounded-lg live-gradient opacity-20 -z-10 border border-violet-500/40"
+                  className="absolute inset-0 -z-10"
+                  style={{ background: 'rgba(0,212,255,0.06)', border: '1px solid rgba(0,212,255,0.2)' }}
                   transition={{ type: 'spring', damping: 26, stiffness: 320 }}
                 />
               )}
-              <Icon size={14} />
-              <span className="font-medium">{label}</span>
+              <Icon size={12} />
+              {label}
             </button>
           )
         })}
       </nav>
 
-      <div className="ml-auto flex items-center gap-2 text-[11px] text-gray-500 font-mono">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          connected
+      {/* Right status */}
+      <div className="ml-auto flex items-center gap-4 font-mono text-[10px]">
+        <span style={{ color: 'rgba(0,212,255,0.4)' }}>
+          <span style={{ color: 'rgba(0,212,255,0.25)' }}>SYS:</span>
+          <span style={{ color: '#00ff88' }}> ONLINE</span>
+        </span>
+        <span style={{ color: 'rgba(0,212,255,0.5)' }}>
+          {time}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <motion.span
+            className="w-1.5 h-1.5 rounded-full"
+            style={{ background: '#00ff88' }}
+            animate={{ opacity: [1, 0.3, 1] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+          />
+          <span style={{ color: 'rgba(0,255,136,0.7)' }}>CONN</span>
         </span>
       </div>
     </header>
