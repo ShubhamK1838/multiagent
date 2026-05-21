@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { Sidebar } from './components/layout/Sidebar'
 import { ChatWindow } from './components/chat/ChatWindow'
 import { EventPanel } from './components/events/EventPanel'
@@ -6,20 +6,13 @@ import { ToolManager } from './components/tools/ToolManager'
 import { SettingsPanel } from './components/settings/SettingsPanel'
 import { RAGPanel } from './components/rag/RAGPanel'
 import { FormModal } from './components/forms/FormModal'
-import { useChatStore } from './store/chatStore'
-import { chatApi } from './services/api'
+import { useConversations } from './hooks/useConversations'
 
 type View = 'chat' | 'tools' | 'settings' | 'rag'
 
 export default function App() {
   const [activeView, setActiveView] = useState<View>('chat')
-  const { activeConversationId, setConversations } = useChatStore()
-
-  useEffect(() => {
-    chatApi.listConversations()
-      .then(setConversations)
-      .catch(console.error)
-  }, [])
+  const { activeConversationId } = useConversations()
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-950">

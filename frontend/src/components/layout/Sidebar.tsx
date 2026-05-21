@@ -1,8 +1,7 @@
 import React from 'react'
 import { MessageSquare, Wrench, Settings, Database, Plus } from 'lucide-react'
 import { clsx } from 'clsx'
-import { useChatStore } from '../../store/chatStore'
-import { chatApi } from '../../services/api'
+import { useConversations } from '../../hooks/useConversations'
 import { formatDistanceToNow } from 'date-fns'
 
 type View = 'chat' | 'tools' | 'settings' | 'rag'
@@ -13,17 +12,12 @@ interface SidebarProps {
 }
 
 export function Sidebar({ activeView, onViewChange }: SidebarProps) {
-  const { conversations, activeConversationId, setActiveConversation, addConversation } = useChatStore()
+  const { conversations, activeConversationId, setActiveConversation, createConversation } =
+    useConversations()
 
   const handleNewChat = async () => {
-    try {
-      const conv = await chatApi.createConversation()
-      addConversation(conv)
-      setActiveConversation(conv.id)
-      onViewChange('chat')
-    } catch (e) {
-      console.error('Failed to create conversation', e)
-    }
+    await createConversation()
+    onViewChange('chat')
   }
 
   const navItems = [
