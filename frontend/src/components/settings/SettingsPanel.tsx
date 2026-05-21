@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { clsx } from 'clsx'
 import {
   Save, RefreshCw, Search, Check, Sparkles, Bot, Database,
-  Layout, SlidersHorizontal, type LucideIcon
+  Layout, SlidersHorizontal, type LucideIcon, Wand2, Loader2
 } from 'lucide-react'
 import { settingsApi } from '../../services/api'
 import { SettingField } from './SettingField'
@@ -36,6 +36,10 @@ export function SettingsPanel() {
   const [savedFlash, setSavedFlash] = useState(false)
   const [activeCategory, setActiveCategory] = useState<Category>('LLM')
   const [query, setQuery] = useState('')
+
+  // AI Theme Generation state
+  const [themePrompt, setThemePrompt] = useState('')
+  const [generatingTheme, setGeneratingTheme] = useState(false)
 
   const load = async () => {
     const data = await settingsApi.getAll()
@@ -89,6 +93,21 @@ export function SettingsPanel() {
     }
   }
 
+  const handleGenerateTheme = async () => {
+    if (!themePrompt.trim() || generatingTheme) return
+    setGeneratingTheme(true)
+    try {
+      await settingsApi.generateTheme(themePrompt)
+      setThemePrompt('')
+      await load()
+    } catch (err) {
+      console.error('Failed to generate theme', err)
+      alert('Failed to generate theme. Make sure AI models are configured.')
+    } finally {
+      setGeneratingTheme(false)
+    }
+  }
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden relative">
       <div className="flex-1 overflow-y-auto px-6 py-8 pb-32">
@@ -107,6 +126,47 @@ export function SettingsPanel() {
 
             <section className="min-w-0">
               <CategoryHeader def={activeDef} count={countsByCategory[activeCategory] ?? 0} />
+
+              {activeCategory === 'UI' && !query && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-6 p-4 rounded-xl border border-violet-500/30 bg-violet-500/5 relative overflow-hidden group"
+                >
+                  <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <Sparkles size={48} className="text-violet-400" />
+                  </div>
+
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center text-violet-300">
+                      <Wand2 size={16} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-violet-100">AI Theme Generator</h3>
+                      <p className="text-[11px] text-violet-300/60">Describe a mood or style to generate a custom palette</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input
+                      className="input bg-gray-900/60 border-violet-500/20 focus:border-violet-500/50"
+                      placeholder="e.g. 'Cyberpunk neon night', 'Deep ocean depths', 'Retro sunset'..."
+                      value={themePrompt}
+                      onChange={e => setThemePrompt(e.target.value)}
+                      disabled={generatingTheme}
+                      onKeyDown={e => e.key === 'Enter' && handleGenerateTheme()}
+                    />
+                    <button
+                      onClick={handleGenerateTheme}
+                      disabled={!themePrompt.trim() || generatingTheme}
+                      className="btn-primary flex items-center gap-2 whitespace-nowrap"
+                    >
+                      {generatingTheme ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                      Generate
+                    </button>
+                  </div>
+                </motion.div>
+              )}
 
               <div className="relative mb-4">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />

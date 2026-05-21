@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+import com.aiframework.service.ThemeGenerationService;
+
 @RestController
 @RequestMapping("/api/v1/settings")
 @RequiredArgsConstructor
@@ -15,10 +17,16 @@ import java.util.Map;
 public class SettingsController {
 
     private final SettingsService settingsService;
+    private final ThemeGenerationService themeGenerationService;
 
     @GetMapping
     public List<SystemSetting> getAll() {
         return settingsService.getAll();
+    }
+
+    @PostMapping("/generate-theme")
+    public Map<String, String> generateTheme(@RequestBody Map<String, String> body) {
+        return themeGenerationService.generateTheme(body.get("prompt"));
     }
 
     @GetMapping("/category/{category}")

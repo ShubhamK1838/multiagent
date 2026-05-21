@@ -39,6 +39,8 @@ export const settingsApi = {
     api.put(`/settings/${key}`, { value }).then(r => r.data),
   bulkUpdate: (settings: Record<string, string>) =>
     api.put('/settings/bulk', settings).then(r => r.data),
+  generateTheme: (prompt: string) =>
+    api.post('/settings/generate-theme', { prompt }).then(r => r.data),
 }
 
 export const ragApi = {
