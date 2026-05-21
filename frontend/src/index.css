@@ -6,24 +6,6 @@
   body {
     @apply bg-gray-950 text-gray-100 font-sans antialiased;
   }
-  body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    background-image:
-      linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px);
-    background-size: 32px 32px;
-    mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
-    -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
-    animation: grid-pulse 6s ease-in-out infinite;
-    z-index: 0;
-  }
-  @keyframes grid-pulse {
-    0%, 100% { opacity: 0.03; }
-    50% { opacity: 0.06; }
-  }
   * {
     scrollbar-width: thin;
     scrollbar-color: #374151 transparent;
