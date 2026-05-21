@@ -11,6 +11,7 @@ import { AiModelsPanel } from './components/aimodels/AiModelsPanel'
 import { FormModal } from './components/forms/FormModal'
 import { useConversations } from './hooks/useConversations'
 import { useUiSettings } from './hooks/useUiSettings'
+import { ThemeProvider } from './components/shared/ThemeProvider'
 
 const pageVariants = {
   initial: { opacity: 0, y: 8 },
@@ -32,6 +33,7 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-gray-950">
+      <ThemeProvider />
       <TopNav activeView={activeView} onChange={setActiveView} />
 
       <div className="flex-1 flex overflow-hidden">

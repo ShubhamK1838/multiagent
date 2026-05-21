@@ -44,7 +44,6 @@ export function ChatWindow({ conversationId, onNewChat }: ChatWindowProps) {
   if (!conversationId) {
     return (
       <div className="flex-1 flex items-center justify-center relative overflow-hidden">
-        <TerminalGrid />
         <EmptyState
           icon={<Sparkles size={22} />}
           title="Start a new conversation"
@@ -68,7 +67,6 @@ export function ChatWindow({ conversationId, onNewChat }: ChatWindowProps) {
       <ChatHeader conversationId={conversationId} />
 
       <div className="flex-1 flex flex-col min-h-0 relative">
-        <TerminalGrid />
         <MessageList messages={convMessages} streamContent={streamContent} thinking={thinking} />
       </div>
 
@@ -149,23 +147,5 @@ export function ChatWindow({ conversationId, onNewChat }: ChatWindowProps) {
         </div>
       </div>
     </div>
-  )
-}
-
-function TerminalGrid() {
-  return (
-    <motion.div
-      aria-hidden
-      className="absolute inset-0 pointer-events-none"
-      style={{
-        backgroundImage:
-          'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)',
-        backgroundSize: '32px 32px',
-        maskImage: 'radial-gradient(ellipse at center, black 40%, transparent 80%)',
-        WebkitMaskImage: 'radial-gradient(ellipse at center, black 40%, transparent 80%)',
-      }}
-      animate={{ opacity: [0.03, 0.06, 0.03] }}
-      transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-    />
   )
 }
