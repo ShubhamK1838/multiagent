@@ -20,6 +20,7 @@ export type EventType =
   | 'TOOL_ERROR'
   | 'FORM_REQUEST'
   | 'FORM_RESOLVED'
+  | 'FORM_SUBMITTED'
   | 'TOKEN'
   | 'STREAM_RESET'
   | 'RESPONSE_START'

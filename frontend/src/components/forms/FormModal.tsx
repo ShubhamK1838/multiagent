@@ -1,35 +1,22 @@
-import { useRef, useState } from 'react'
-import Form, { IChangeEvent } from '@rjsf/core'
-import validator from '@rjsf/validator-ajv8'
-import { Send, Loader2 } from 'lucide-react'
+import React, { useState } from 'react'
 import { useChatStore } from '../../store/chatStore'
 import { formApi } from '../../services/api'
-import { Modal } from '../shared/Modal'
+import { DynamicFormRenderer } from './DynamicFormRenderer'
+import type { FormSchema } from '../../types/form'
+import { X, FileInput } from 'lucide-react'
 
 export function FormModal() {
   const { pendingForm, setPendingForm } = useChatStore()
-  const formRef = useRef<Form>(null)
-  const submitButtonRef = useRef<HTMLButtonElement>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const close = () => {
-    if (submitting) return
-    setError(null)
-    setPendingForm(null)
-  }
+  if (!pendingForm) return null
 
-  const triggerSubmit = () => {
-    submitButtonRef.current?.click()
-  }
-
-  const handleSubmit = async (data: IChangeEvent) => {
-    if (!pendingForm) return
+  const handleSubmit = async (data: Record<string, unknown>) => {
     setSubmitting(true)
     setError(null)
     try {
-      const formData = (data.formData ?? {}) as Record<string, unknown>
-      await formApi.submit(pendingForm.id, formData)
+      await formApi.submit(pendingForm.id, data)
       setPendingForm(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Submission failed')
@@ -38,69 +25,41 @@ export function FormModal() {
     }
   }
 
-  const reason = readReason(pendingForm?.schema)
+  const schema = pendingForm.schema as unknown as FormSchema
+  const title = schema.title ?? 'Input Required'
 
   return (
-    <Modal
-      open={!!pendingForm}
-      onClose={close}
-      title="AI needs more info"
-      subtitle="Fill out the form to continue the conversation"
-      width="md"
-      footer={
-        <>
-          <button onClick={close} disabled={submitting} className="btn-ghost">
-            Cancel
-          </button>
-          <button
-            onClick={triggerSubmit}
-            disabled={submitting}
-            className="btn-primary flex items-center gap-2"
-          >
-            {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-            {submitting ? 'Submitting…' : 'Submit'}
-          </button>
-        </>
-      }
-    >
-      {pendingForm && (
-        <div className="rjsf-dark">
-          {reason && (
-            <div className="rounded-lg border border-violet-500/30 bg-violet-500/5 text-violet-100 text-sm p-3 mb-4">
-              {reason}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-violet-600/20 border border-violet-500/40 flex items-center justify-center">
+              <FileInput size={13} className="text-violet-400" />
             </div>
-          )}
+            <div>
+              <h2 className="text-sm font-semibold text-gray-100">{title}</h2>
+              <p className="text-xs text-gray-500 mt-0.5">AI needs your input to continue</p>
+            </div>
+          </div>
+          <button onClick={() => setPendingForm(null)} className="btn-ghost p-1.5 rounded-lg">
+            <X size={15} />
+          </button>
+        </div>
 
+        <div className="overflow-y-auto p-5 flex-1">
           {error && (
-            <div className="rounded-lg border border-red-500/40 bg-red-500/10 text-red-300 text-sm p-3 mb-4">
+            <div className="mb-4 p-3 bg-red-900/20 border border-red-800 rounded-lg text-red-400 text-sm font-mono">
               {error}
             </div>
           )}
-
-          <Form
-            ref={formRef}
-            schema={pendingForm.schema as never}
-            validator={validator}
+          <DynamicFormRenderer
+            schema={schema}
             onSubmit={handleSubmit}
-            showErrorList={false}
-            liveValidate={false}
-          >
-            <button ref={submitButtonRef} type="submit" className="hidden" aria-hidden />
-          </Form>
+            onCancel={() => setPendingForm(null)}
+            submitting={submitting}
+          />
         </div>
-      )}
-    </Modal>
+      </div>
+    </div>
   )
-}
-
-/**
- * The ask_user tool may include a top-level `description` or a custom
- * `reason` field on the schema. Surface it as a friendly prompt.
- */
-function readReason(schema: unknown): string | null {
-  if (!schema || typeof schema !== 'object') return null
-  const s = schema as Record<string, unknown>
-  const description = typeof s.description === 'string' ? s.description : null
-  const reason = typeof s.reason === 'string' ? s.reason : null
-  return reason ?? description
 }
