@@ -16,7 +16,7 @@ export function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
       transition={{ duration: 0.3 }}
     >
       <div>
-        <h1 className="text-xl font-semibold text-gray-100 tracking-tight">{title}</h1>
+        <h1 className="text-xl font-semibold tracking-tight live-gradient-text">{title}</h1>
         {subtitle && <p className="text-xs text-gray-500 mt-1 font-mono">{subtitle}</p>}
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}

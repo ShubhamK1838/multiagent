@@ -1,15 +1,21 @@
 package com.aiframework.core.rag;
 
 import com.aiframework.domain.entity.DocumentChunk;
+import com.aiframework.domain.entity.RagDocument;
 import com.aiframework.domain.repository.DocumentChunkRepository;
+import com.aiframework.domain.repository.RagDocumentRepository;
 import com.aiframework.service.SettingsService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.DigestUtils;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -18,13 +24,16 @@ public class RAGService {
 
     private final EmbeddingModel embeddingModel;
     private final DocumentChunkRepository documentChunkRepository;
+    private final RagDocumentRepository ragDocumentRepository;
     private final SettingsService settingsService;
 
     public RAGService(@Qualifier("ollamaEmbeddingModel") EmbeddingModel embeddingModel,
                       DocumentChunkRepository documentChunkRepository,
+                      RagDocumentRepository ragDocumentRepository,
                       SettingsService settingsService) {
         this.embeddingModel = embeddingModel;
         this.documentChunkRepository = documentChunkRepository;
+        this.ragDocumentRepository = ragDocumentRepository;
         this.settingsService = settingsService;
     }
 
@@ -48,15 +57,32 @@ public class RAGService {
         }
     }
 
+    @Transactional
     public void ingestDocument(String title, String source, String content) {
+        String contentHash = DigestUtils.md5DigestAsHex(content.getBytes(StandardCharsets.UTF_8));
+        
+        Optional<RagDocument> existing = ragDocumentRepository.findByContentHash(contentHash);
+        if (existing.isPresent()) {
+            log.info("Document '{}' already exists (hash: {}), skipping ingestion.", title, contentHash);
+            return;
+        }
+
+        RagDocument document = RagDocument.builder()
+                .title(title)
+                .source(source)
+                .contentHash(contentHash)
+                .metadata(java.util.Map.of("title", title, "source", source))
+                .build();
+        document = ragDocumentRepository.save(document);
+
         // Chunk the document
         List<String> chunks = chunkText(content, 512, 50);
-        float[] titleEmbedding = embeddingModel.embed(title + "\n" + content.substring(0, Math.min(200, content.length())));
-
+        
         for (int i = 0; i < chunks.size(); i++) {
             String chunk = chunks.get(i);
             float[] embedding = embeddingModel.embed(chunk);
             DocumentChunk documentChunk = DocumentChunk.builder()
+                    .documentId(document.getId())
                     .content(chunk)
                     .embedding(embedding)
                     .chunkIndex(i)

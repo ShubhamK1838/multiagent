@@ -3,7 +3,7 @@ import type { Conversation, AgentEvent, FormRequest } from '../types'
 
 interface ChatMessage {
   id: string
-  role: 'user' | 'assistant'
+  role: 'user' | 'assistant' | 'thinking'
   content: string
   streaming?: boolean
 }
@@ -18,9 +18,11 @@ interface ChatStore {
   isThinking: Record<string, boolean>
 
   setConversations: (convs: Conversation[]) => void
-  setActiveConversation: (id: string) => void
+  setActiveConversation: (id: string | null) => void
   addConversation: (conv: Conversation) => void
+  removeConversation: (id: string) => void
   addMessage: (conversationId: string, message: ChatMessage) => void
+  setMessages: (conversationId: string, messages: ChatMessage[]) => void
   appendToken: (conversationId: string, token: string) => void
   resetStream: (conversationId: string) => void
   finalizeStream: (conversationId: string) => void
@@ -44,11 +46,36 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   addConversation: (conv) =>
     set((s) => ({ conversations: [conv, ...s.conversations] })),
 
+  removeConversation: (id) =>
+    set((s) => {
+      const { [id]: _msgs, ...remainingMessages } = s.messages
+      const { [id]: _evts, ...remainingEvents } = s.events
+      const { [id]: _stream, ...remainingStream } = s.streamingContent
+      const { [id]: _thinking, ...remainingThinking } = s.isThinking
+      void _msgs; void _evts; void _stream; void _thinking
+      return {
+        conversations: s.conversations.filter(c => c.id !== id),
+        activeConversationId: s.activeConversationId === id ? null : s.activeConversationId,
+        messages: remainingMessages,
+        events: remainingEvents,
+        streamingContent: remainingStream,
+        isThinking: remainingThinking,
+      }
+    }),
+
   addMessage: (conversationId, message) =>
     set((s) => ({
       messages: {
         ...s.messages,
         [conversationId]: [...(s.messages[conversationId] ?? []), message],
+      },
+    })),
+
+  setMessages: (conversationId, messages) =>
+    set((s) => ({
+      messages: {
+        ...s.messages,
+        [conversationId]: messages,
       },
     })),
 

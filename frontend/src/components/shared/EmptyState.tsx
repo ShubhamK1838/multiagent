@@ -17,12 +17,13 @@ export function EmptyState({ icon, title, description, action }: EmptyStateProps
       transition={{ duration: 0.3 }}
     >
       <motion.div
-        className="w-14 h-14 rounded-2xl bg-violet-600/15 border border-violet-500/30 flex items-center justify-center text-violet-400 mb-4 glow-violet"
+        className="relative w-14 h-14 rounded-2xl live-gradient flex items-center justify-center text-white mb-4 shadow-xl shadow-violet-600/30 overflow-hidden"
         initial={{ scale: 0.8, rotate: -8 }}
         animate={{ scale: 1, rotate: 0 }}
         transition={{ type: 'spring', damping: 12, stiffness: 200, delay: 0.1 }}
       >
-        {icon}
+        <span className="absolute inset-0 bg-gray-950/15" />
+        <span className="relative">{icon}</span>
       </motion.div>
       <h3 className="text-base font-semibold text-gray-200 mb-1">{title}</h3>
       {description && (

@@ -10,8 +10,14 @@ export const chatApi = {
   listConversations: () =>
     api.get<Conversation[]>('/chat/conversations').then(r => r.data),
 
+  getMessages: (conversationId: string) =>
+    api.get(`/chat/conversations/${conversationId}/messages`).then(r => r.data),
+
   sendMessage: (conversationId: string, message: string) =>
     api.post(`/chat/conversations/${conversationId}/messages`, { message }).then(r => r.data),
+
+  deleteConversation: (conversationId: string) =>
+    api.delete(`/chat/conversations/${conversationId}`).then(r => r.data),
 }
 
 export const toolApi = {

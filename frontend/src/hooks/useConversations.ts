@@ -3,8 +3,10 @@ import { useChatStore } from '../store/chatStore'
 import { chatApi } from '../services/api'
 
 export function useConversations() {
-  const { conversations, activeConversationId, setConversations, setActiveConversation, addConversation } =
-    useChatStore()
+  const {
+    conversations, activeConversationId,
+    setConversations, setActiveConversation, addConversation, removeConversation,
+  } = useChatStore()
 
   useEffect(() => {
     chatApi.listConversations().then(setConversations).catch(console.error)
@@ -17,5 +19,10 @@ export function useConversations() {
     return conv
   }
 
-  return { conversations, activeConversationId, setActiveConversation, createConversation }
+  const deleteConversation = async (id: string) => {
+    await chatApi.deleteConversation(id)
+    removeConversation(id)
+  }
+
+  return { conversations, activeConversationId, setActiveConversation, createConversation, deleteConversation }
 }

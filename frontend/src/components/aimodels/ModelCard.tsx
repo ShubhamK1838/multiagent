@@ -29,7 +29,7 @@ export function ModelCard({ model, onEdit, onDelete, onPromote, busy }: ModelCar
     >
       {model.default && (
         <motion.div
-          className="absolute top-0 right-0 px-3 py-1 rounded-bl-lg bg-violet-600 text-white text-[10px] font-mono uppercase tracking-wider flex items-center gap-1"
+          className="absolute top-0 right-0 px-3 py-1 rounded-bl-lg live-gradient text-white text-[10px] font-mono uppercase tracking-wider flex items-center gap-1 shadow-lg shadow-violet-600/30"
           initial={{ x: 50 }}
           animate={{ x: 0 }}
           transition={{ type: 'spring', damping: 20 }}

@@ -50,7 +50,18 @@ public class ConversationService {
                 .collect(Collectors.toList());
     }
 
+    public List<MessageEntity> getMessageEntities(UUID conversationId) {
+        return messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId);
+    }
+
     public List<Conversation> listConversations() {
         return conversationRepository.findByStatusOrderByCreatedAtDesc("ACTIVE");
+    }
+
+    @Transactional
+    public void deleteConversation(UUID conversationId) {
+        // FK ON DELETE CASCADE on messages, form_requests, agent_events
+        // takes care of dependent rows.
+        conversationRepository.deleteById(conversationId);
     }
 }

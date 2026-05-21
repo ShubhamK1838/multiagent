@@ -31,7 +31,7 @@ export function DebugPanel({ conversationId }: DebugPanelProps) {
   )
 
   return (
-    <div className="border-t border-gray-800 bg-gray-950/60 backdrop-blur-sm">
+    <div className="shrink-0 border-t border-gray-800 bg-gray-950/60 backdrop-blur-sm">
       <div className="max-w-4xl mx-auto px-4 py-2">
         <button
           onClick={() => setOpen(o => !o)}

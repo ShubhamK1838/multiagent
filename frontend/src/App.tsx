@@ -10,6 +10,7 @@ import { RAGPanel } from './components/rag/RAGPanel'
 import { AiModelsPanel } from './components/aimodels/AiModelsPanel'
 import { FormModal } from './components/forms/FormModal'
 import { useConversations } from './hooks/useConversations'
+import { useUiSettings } from './hooks/useUiSettings'
 
 const pageVariants = {
   initial: { opacity: 0, y: 8 },
@@ -20,6 +21,9 @@ const pageVariants = {
 export default function App() {
   const [activeView, setActiveView] = useState<View>('chat')
   const { activeConversationId, createConversation } = useConversations()
+  const { getBoolean } = useUiSettings()
+
+  const showEventPanel = getBoolean('ui.activity_panel', true)
 
   const handleNewChat = async () => {
     await createConversation()
@@ -47,7 +51,20 @@ export default function App() {
               {activeView === 'chat' && (
                 <>
                   <ChatWindow conversationId={activeConversationId} onNewChat={handleNewChat} />
-                  <EventPanel conversationId={activeConversationId} />
+                  <AnimatePresence>
+                    {showEventPanel && (
+                      <motion.div
+                        key="event-panel"
+                        initial={{ x: 320, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        exit={{ x: 320, opacity: 0 }}
+                        transition={{ type: 'spring', damping: 26, stiffness: 240 }}
+                        className="shrink-0"
+                      >
+                        <EventPanel conversationId={activeConversationId} />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </>
               )}
               {activeView === 'models'   && <AiModelsPanel />}

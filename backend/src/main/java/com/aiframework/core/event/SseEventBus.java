@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
+import reactor.util.concurrent.Queues;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,8 +31,12 @@ public class SseEventBus implements EventBus {
 
     @Override
     public Flux<AgentEvent> subscribe(String conversationId) {
+        // autoCancel=false keeps the sink alive when the SSE client disconnects
+        // (e.g. user navigates to another view). Otherwise the sink terminates
+        // and any later reconnect on the same conversation receives no events.
         return sinks.computeIfAbsent(conversationId,
-                id -> Sinks.many().multicast().onBackpressureBuffer()).asFlux();
+                id -> Sinks.many().multicast().onBackpressureBuffer(
+                        Queues.SMALL_BUFFER_SIZE, false)).asFlux();
     }
 
     @Override

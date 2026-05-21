@@ -22,43 +22,38 @@ public class ResponseParser {
 
     public LLMResponse parse(String rawResponse) {
         String trimmed = rawResponse == null ? "" : rawResponse.strip();
-        if (looksLikeToolCallEnvelope(trimmed)) {
-            return parseToolCallOrFallback(trimmed);
-        }
-        return LLMResponse.finalAnswer(rawResponse);
-    }
-
-    private boolean looksLikeToolCallEnvelope(String trimmed) {
-        return trimmed.contains("\"tool_call\"")
-                || trimmed.startsWith("{")
-                || trimmed.startsWith("```");
-    }
-
-    private LLMResponse parseToolCallOrFallback(String trimmed) {
         String json = extractJsonBody(trimmed);
-        if (json == null) {
-            return safeFallback(trimmed);
-        }
+        if (json == null) json = trimmed;
+
         try {
             JsonNode root = objectMapper.readTree(json);
-            if (!root.has("tool_call")) {
-                return LLMResponse.finalAnswer(trimmed);
+            String type = root.path("type").asText("").toUpperCase();
+            String responseText = root.path("response").asText("");
+
+            if ("FINAL_ANSWER".equals(type) || "FINAL ANSWER".equals(type)) {
+                return LLMResponse.finalAnswer(responseText.isEmpty() ? json : responseText);
             }
-            return buildToolCallResponse(root);
+
+            if (root.has("tool_call")) {
+                return buildToolCallResponse(root, responseText);
+            }
+
+            // Fallback if no tool_call but not FINAL_ANSWER
+            return LLMResponse.finalAnswer(responseText.isEmpty() ? json : responseText);
+
         } catch (JsonProcessingException e) {
             log.debug("Tool-call JSON failed to parse: {}", e.getOriginalMessage());
             return safeFallback(trimmed);
         }
     }
 
-    private LLMResponse buildToolCallResponse(JsonNode root) {
+    private LLMResponse buildToolCallResponse(JsonNode root, String responseText) {
         JsonNode toolCall = root.get("tool_call");
         String toolName = toolCall.path("name").asText();
-        String reasoning = root.path("reasoning").asText("");
         Map<String, Object> args = objectMapper.convertValue(
                 toolCall.get("arguments"),
                 objectMapper.getTypeFactory().constructMapType(Map.class, String.class, Object.class));
-        return LLMResponse.toolCall(reasoning, toolName, args);
+        return LLMResponse.toolCall(responseText, toolName, args);
     }
 
     private String extractJsonBody(String trimmed) {

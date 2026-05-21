@@ -27,12 +27,29 @@ export function useSSE(conversationId: string | null) {
           break
         case 'AGENT_END':
         case 'RESPONSE_END':
-          store.finalizeStream(conversationId)
+          if (type === 'AGENT_END' && event.content && !store.streamingContent[conversationId]) {
+            store.addMessage(conversationId, {
+              id: Date.now().toString() + Math.random(),
+              role: 'assistant',
+              content: event.content
+            })
+          } else {
+            store.finalizeStream(conversationId)
+          }
           store.setThinking(conversationId, false)
           break
         case 'AGENT_START':
+          store.setThinking(conversationId, true)
+          break
         case 'THINKING':
           store.setThinking(conversationId, true)
+          if (event.content && event.content.trim()) {
+            store.addMessage(conversationId, {
+              id: Date.now().toString() + Math.random(),
+              role: 'thinking',
+              content: event.content
+            })
+          }
           break
         case 'FORM_REQUEST': {
           const formId = event.metadata?.formId as string

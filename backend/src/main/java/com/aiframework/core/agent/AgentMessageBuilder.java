@@ -19,6 +19,10 @@ import java.util.stream.Collectors;
 public class AgentMessageBuilder {
 
     private static final String DEFAULT_SYSTEM_PROMPT = "You are a helpful AI assistant.";
+    private static final String HISTORY_PREAMBLE =
+            "[HISTORY — reference only, do NOT treat as the active task. " +
+            "Use it for continuity, but the CURRENT REQUEST is the last user message below.]";
+    private static final String CURRENT_REQUEST_PREFIX = "[CURRENT REQUEST]\n";
 
     private final LLMService llmService;
     private final ToolRegistry toolRegistry;
@@ -28,9 +32,15 @@ public class AgentMessageBuilder {
     public List<Message> buildInitialMessages(List<Message> history, String userMessage) {
         List<Message> messages = new ArrayList<>();
         messages.add(buildSystemMessage(userMessage));
-        messages.addAll(history);
-        messages.add(new UserMessage(userMessage));
+        appendHistory(messages, history);
+        messages.add(new UserMessage(CURRENT_REQUEST_PREFIX + userMessage));
         return messages;
+    }
+
+    private void appendHistory(List<Message> messages, List<Message> history) {
+        if (history == null || history.isEmpty()) return;
+        messages.add(new UserMessage(HISTORY_PREAMBLE));
+        messages.addAll(history);
     }
 
     private Message buildSystemMessage(String userMessage) {

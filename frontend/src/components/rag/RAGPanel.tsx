@@ -1,19 +1,29 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Upload, Search, CheckCircle, AlertCircle, Loader2, Database } from 'lucide-react'
+import { Upload, Search, CheckCircle, AlertCircle, Loader2, Database, Type } from 'lucide-react'
 import { ragApi } from '../../services/api'
 import { PageHeader } from '../shared/PageHeader'
+import { AnimatedTabs } from '../shared/AnimatedTabs'
+import { FileDropzone } from './FileDropzone'
 
 type Status = 'idle' | 'loading' | 'success' | 'error'
+type IngestMode = 'file' | 'paste'
 
 export function RAGPanel() {
   const [title, setTitle] = useState('')
   const [source, setSource] = useState('')
   const [content, setContent] = useState('')
+  const [mode, setMode] = useState<IngestMode>('file')
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<string | null>(null)
   const [status, setStatus] = useState<Status>('idle')
   const [message, setMessage] = useState('')
+
+  const handleFile = (file: File, text: string) => {
+    setContent(text)
+    if (!title) setTitle(stripExt(file.name))
+    if (!source) setSource(file.name)
+  }
 
   const ingest = async () => {
     if (!title || !content) return
@@ -21,7 +31,7 @@ export function RAGPanel() {
     try {
       await ragApi.ingest(title, content, source)
       setStatus('success')
-      setMessage(`Document "${title}" ingested successfully`)
+      setMessage(`"${title}" ingested · ${content.length.toLocaleString()} chars`)
       setTitle(''); setSource(''); setContent('')
     } catch (e) {
       setStatus('error')
@@ -41,6 +51,8 @@ export function RAGPanel() {
       setMessage(e instanceof Error ? e.message : 'Search failed')
     }
   }
+
+  const canIngest = !!title && !!content && status !== 'loading'
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-8">
@@ -70,41 +82,90 @@ export function RAGPanel() {
         </AnimatePresence>
 
         <motion.div className="card p-5 space-y-4" layout>
-          <h2 className="text-sm font-semibold text-violet-300 flex items-center gap-2">
-            <Upload size={14} />
-            Ingest document
-          </h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-violet-300 flex items-center gap-2">
+              <Upload size={14} />
+              Ingest document
+            </h2>
+            <AnimatedTabs
+              options={[
+                { id: 'file',  label: 'Upload' },
+                { id: 'paste', label: 'Paste' },
+              ]}
+              value={mode}
+              onChange={setMode}
+              layoutId="ingest-mode"
+            />
+          </div>
+
+          <AnimatePresence mode="wait">
+            {mode === 'file' ? (
+              <motion.div
+                key="file-mode"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.18 }}
+                className="space-y-3"
+              >
+                <FileDropzone onFile={handleFile} disabled={status === 'loading'} />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="paste-mode"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.18 }}
+              >
+                <label className="label block mb-1.5 flex items-center gap-1.5">
+                  <Type size={11} /> Content
+                </label>
+                <textarea
+                  className="input resize-none font-mono text-xs"
+                  rows={8}
+                  value={content}
+                  onChange={e => setContent(e.target.value)}
+                  placeholder="Paste document content here…"
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="label block mb-1.5">Title *</label>
-              <input className="input" value={title} onChange={e => setTitle(e.target.value)} placeholder="Document title" />
+              <input
+                className="input"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="Document title"
+              />
             </div>
             <div>
-              <label className="label block mb-1.5">Source URL</label>
-              <input className="input" value={source} onChange={e => setSource(e.target.value)} placeholder="https://…" />
+              <label className="label block mb-1.5">Source</label>
+              <input
+                className="input"
+                value={source}
+                onChange={e => setSource(e.target.value)}
+                placeholder="filename or URL"
+              />
             </div>
           </div>
 
-          <div>
-            <label className="label block mb-1.5">Content *</label>
-            <textarea
-              className="input resize-none font-mono text-xs"
-              rows={8}
-              value={content}
-              onChange={e => setContent(e.target.value)}
-              placeholder="Paste document content here…"
-            />
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-500 font-mono">
+              {content ? `${content.length.toLocaleString()} chars ready` : 'no content yet'}
+            </p>
+            <button
+              onClick={ingest}
+              disabled={!canIngest}
+              className="btn-primary flex items-center gap-2"
+            >
+              {status === 'loading' ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+              Ingest
+            </button>
           </div>
-
-          <button
-            onClick={ingest}
-            disabled={!title || !content || status === 'loading'}
-            className="btn-primary flex items-center gap-2"
-          >
-            {status === 'loading' ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-            Ingest document
-          </button>
         </motion.div>
 
         <motion.div className="card p-5 space-y-4" layout>
@@ -142,4 +203,9 @@ export function RAGPanel() {
       </div>
     </div>
   )
+}
+
+function stripExt(filename: string): string {
+  const i = filename.lastIndexOf('.')
+  return i > 0 ? filename.substring(0, i) : filename
 }

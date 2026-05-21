@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import com.aiframework.domain.entity.MessageEntity;
+
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/chat")
@@ -37,6 +39,19 @@ public class ChatController {
     @GetMapping("/conversations")
     public List<Conversation> listConversations() {
         return conversationService.listConversations();
+    }
+
+    @DeleteMapping("/conversations/{conversationId}")
+    public Map<String, String> deleteConversation(@PathVariable String conversationId) {
+        UUID convId = UUID.fromString(conversationId);
+        conversationService.deleteConversation(convId);
+        return Map.of("status", "deleted", "conversationId", conversationId);
+    }
+
+    @GetMapping("/conversations/{conversationId}/messages")
+    public List<MessageEntity> getMessages(@PathVariable String conversationId) {
+        UUID convId = UUID.fromString(conversationId);
+        return conversationService.getMessageEntities(convId);
     }
 
     @PostMapping("/conversations/{conversationId}/messages")

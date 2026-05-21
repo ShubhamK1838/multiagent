@@ -22,17 +22,20 @@ const ITEMS: { id: View; label: string; icon: React.ElementType }[] = [
 
 export function TopNav({ activeView, onChange }: TopNavProps) {
   return (
-    <header className="h-14 border-b border-gray-800 bg-gray-950/70 backdrop-blur-sm flex items-center px-4 gap-4 shrink-0 z-20">
-      <div className="flex items-center gap-2 mr-4">
+    <header className="relative h-14 border-b border-gray-800 bg-gray-950/70 backdrop-blur-sm flex items-center px-4 gap-4 shrink-0 z-20 overflow-hidden">
+      {/* Slim live gradient ribbon at the bottom edge of the header */}
+      <span aria-hidden className="live-gradient absolute left-0 right-0 bottom-0 h-[1.5px] opacity-70" />
+
+      <div className="flex items-center gap-2 mr-4 relative">
         <motion.div
-          className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-cyan-400 flex items-center justify-center text-white"
+          className="w-7 h-7 rounded-lg live-gradient flex items-center justify-center text-white shadow-lg shadow-violet-600/30"
           animate={{ rotate: [0, 360] }}
           transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
         >
           <Sparkles size={14} />
         </motion.div>
         <div className="leading-tight">
-          <p className="text-sm font-semibold text-gray-100">AI Framework</p>
+          <p className="text-sm font-semibold live-gradient-text">AI Framework</p>
           <p className="text-[10px] font-mono text-gray-500">v1.0.0</p>
         </div>
       </div>
@@ -52,7 +55,7 @@ export function TopNav({ activeView, onChange }: TopNavProps) {
               {active && (
                 <motion.span
                   layoutId="topnav-bg"
-                  className="absolute inset-0 rounded-lg bg-violet-600/20 border border-violet-500/40 -z-10"
+                  className="absolute inset-0 rounded-lg live-gradient opacity-20 -z-10 border border-violet-500/40"
                   transition={{ type: 'spring', damping: 26, stiffness: 320 }}
                 />
               )}

@@ -6,6 +6,7 @@ import com.aiframework.core.event.AgentEvent;
 import com.aiframework.core.event.EventBus;
 import com.aiframework.core.event.EventType;
 import com.aiframework.core.tool.ToolExecutionResult;
+import com.aiframework.service.ConversationService;
 import com.aiframework.service.SettingsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +15,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -29,6 +31,7 @@ public class AgentOrchestrator {
     private final ToolCallExecutor toolCallExecutor;
     private final EventBus eventBus;
     private final SettingsService settings;
+    private final ConversationService conversationService;
 
     @Async
     public void run(String conversationId, List<Message> history, String userMessage) {
@@ -76,7 +79,17 @@ public class AgentOrchestrator {
     }
 
     private void publishAgentEnd(String conversationId, String content) {
+        persistAssistantMessage(conversationId, content);
         eventBus.publish(AgentEvent.of(EventType.AGENT_END, conversationId, content));
+    }
+
+    private void persistAssistantMessage(String conversationId, String content) {
+        if (content == null || content.isBlank()) return;
+        try {
+            conversationService.saveMessage(UUID.fromString(conversationId), "assistant", content);
+        } catch (Exception e) {
+            log.warn("Failed to persist assistant message for conv {}: {}", conversationId, e.getMessage());
+        }
     }
 
     private void publishThinkingIfPresent(String conversationId, LLMResponse response) {
