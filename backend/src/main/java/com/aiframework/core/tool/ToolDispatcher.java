@@ -4,6 +4,7 @@ import com.aiframework.core.event.EventBus;
 import com.aiframework.core.tool.strategy.ToolExecutionStrategyRegistry;
 import com.aiframework.domain.entity.ToolDefinitionEntity;
 import com.aiframework.service.ToolExecutionLogger;
+import com.aiframework.service.monitoring.ActiveOperationsTracker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -17,10 +18,13 @@ public class ToolDispatcher {
     private final ToolExecutionStrategyRegistry strategyRegistry;
     private final EventBus eventBus;
     private final ToolExecutionLogger executionLogger;
+    private final ActiveOperationsTracker activeOperationsTracker;
 
     public ToolExecutionResult dispatch(ToolDefinitionEntity tool, Map<String, Object> args, String conversationId) {
         log.debug("Dispatching tool: {} (type={})", tool.getName(), tool.getToolType());
         eventBus.publishToolCall(conversationId, tool.getName(), args);
+
+        String opId = activeOperationsTracker.startOperation(tool.getName(), args != null ? args.toString() : "{}");
 
         long start = System.currentTimeMillis();
         ToolExecutionResult result;
@@ -30,6 +34,8 @@ public class ToolDispatcher {
             result = ToolExecutionResult.error("Execution failed: " + e.getMessage());
         }
         long duration = System.currentTimeMillis() - start;
+
+        activeOperationsTracker.completeOperation(opId, result.isSuccess(), result.isSuccess() ? "Success" : result.getError());
 
         // Parse conversationId safely
         java.util.UUID convId = null;
