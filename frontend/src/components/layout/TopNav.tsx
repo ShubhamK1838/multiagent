@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { clsx } from 'clsx'
-import { MessageSquare, Wrench, Settings, Database, Sparkles } from 'lucide-react'
+import { MessageSquare, Wrench, Settings, Database, Sparkles, Eye } from 'lucide-react'
 import { ArcReactor } from '../shared/ArcReactor'
 
-export type View = 'chat' | 'models' | 'tools' | 'settings' | 'rag'
+export type View = 'chat' | 'models' | 'tools' | 'settings' | 'rag' | 'hud'
 
 interface TopNavProps {
   activeView: View
@@ -17,6 +17,7 @@ const ITEMS: { id: View; label: string; icon: React.ElementType }[] = [
   { id: 'tools',    label: 'ARSENAL',  icon: Wrench },
   { id: 'rag',      label: 'KNOWLEDGE',icon: Database },
   { id: 'settings', label: 'SYSTEMS',  icon: Settings },
+  { id: 'hud',      label: 'HUD CORE', icon: Eye },
 ]
 
 export function TopNav({ activeView, onChange }: TopNavProps) {

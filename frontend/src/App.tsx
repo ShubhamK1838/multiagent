@@ -15,13 +15,18 @@ import { ThemeProvider } from './components/shared/ThemeProvider'
 import { BackgroundGrid } from './components/shared/BackgroundGrid'
 import { BootSequence } from './components/shared/BootSequence'
 
+// New Jarvis Imports
+import { ThemeProvider as JarvisThemeProvider } from './contexts/ThemeContext'
+import { SecurityProvider } from './contexts/SecurityContext'
+import { JarvisHUDView } from './components/layout/JarvisHUDView'
+
 const pageVariants = {
   initial: { opacity: 0, y: 8 },
   animate: { opacity: 1, y: 0 },
   exit:    { opacity: 0, y: -4 },
 }
 
-export default function App() {
+function MainApp() {
   const [booted, setBooted] = useState(false)
   const [activeView, setActiveView] = useState<View>('chat')
   const { activeConversationId, createConversation } = useConversations()
@@ -79,6 +84,7 @@ export default function App() {
                 {activeView === 'tools'    && <ToolManager />}
                 {activeView === 'settings' && <SettingsPanel />}
                 {activeView === 'rag'      && <RAGPanel />}
+                {activeView === 'hud'      && <JarvisHUDView />}
               </motion.div>
             </AnimatePresence>
           </main>
@@ -87,5 +93,15 @@ export default function App() {
         <FormModal />
       </div>
     </>
+  )
+}
+
+export default function App() {
+  return (
+    <JarvisThemeProvider>
+      <SecurityProvider>
+        <MainApp />
+      </SecurityProvider>
+    </JarvisThemeProvider>
   )
 }
