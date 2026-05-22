@@ -47,7 +47,7 @@ export function ToolForm({ tool, onChange, onSave, onClose }: ToolFormProps) {
         </>
       }
     >
-      <div className="space-y-5 relative z-20">
+      <div className="space-y-5 relative pointer-events-auto">
         <AnimatedTabs
           options={TABS.map(t => ({ id: t.id, label: t.label }))}
           value={tab}
@@ -86,7 +86,7 @@ function BasicTab({ tool, update }: TabProps) {
         <div>
           <label className="label block mb-1.5">Name <span className="text-red-400 normal-case">*</span></label>
           <input
-            className="input font-mono"
+            className="input font-mono relative z-30"
             value={tool.name ?? ''}
             onChange={e => update({ name: e.target.value })}
             placeholder="web_search"
@@ -96,7 +96,7 @@ function BasicTab({ tool, update }: TabProps) {
         <div>
           <label className="label block mb-1.5">Type</label>
           <select
-            className="input"
+            className="input relative z-30"
             value={tool.toolType ?? 'HTTP'}
             onChange={e => update({ toolType: e.target.value as ToolDefinition['toolType'] })}
           >
@@ -110,7 +110,7 @@ function BasicTab({ tool, update }: TabProps) {
       <div>
         <label className="label block mb-1.5">Description <span className="text-red-400 normal-case">*</span></label>
         <textarea
-          className="input resize-none"
+          className="input resize-none relative z-30"
           rows={3}
           value={tool.description ?? ''}
           onChange={e => update({ description: e.target.value })}
@@ -119,14 +119,14 @@ function BasicTab({ tool, update }: TabProps) {
       </div>
 
       <div className="flex flex-wrap items-center gap-6 p-4 border border-jarvis-cyan/20 bg-jarvis-cyan/5">
-        <label className="flex items-center gap-3 cursor-pointer">
+        <label className="flex items-center gap-3 cursor-pointer relative z-30">
           <Toggle
             checked={tool.enabled ?? true}
             onChange={(next) => update({ enabled: next })}
           />
           <span className="text-xs font-mono tracking-wider uppercase text-jarvis-cyan">Enabled (Available to agent)</span>
         </label>
-        <label className="flex items-center gap-3 cursor-pointer">
+        <label className="flex items-center gap-3 cursor-pointer relative z-30">
           <Toggle
             checked={tool.requiresConfirmation ?? false}
             onChange={(next) => update({ requiresConfirmation: next })}
@@ -144,13 +144,13 @@ function ConfigTab({ tool, update }: TabProps) {
   const type = tool.toolType ?? 'HTTP'
 
   if (type === 'HTTP') {
-    return <HttpConfigForm config={config} onChange={setConfig} />
+    return <div className="relative z-30"><HttpConfigForm config={config} onChange={setConfig} /></div>
   }
   if (type === 'BUILTIN') {
-    return <BuiltinConfigForm config={config} onChange={setConfig} />
+    return <div className="relative z-30"><BuiltinConfigForm config={config} onChange={setConfig} /></div>
   }
   return (
-    <div className="border border-dashed border-jarvis-cyan/40 bg-jarvis-cyan/5 p-4 text-xs text-jarvis-cyan/70 font-mono text-center uppercase tracking-wider">
+    <div className="border border-dashed border-jarvis-cyan/40 bg-jarvis-cyan/5 p-4 text-xs text-jarvis-cyan/70 font-mono text-center uppercase tracking-wider relative z-30">
       No structured editor for <span className="text-jarvis-cyan font-bold">{type}</span> tools yet — use the
       <span className="text-jarvis-cyan font-bold"> Raw JSON </span> tab to configure it.
     </div>
@@ -219,7 +219,7 @@ function JsonField({ label, value, onChange, rows }: JsonFieldProps) {
       <label className="label block mb-1.5">{label}</label>
       <textarea
         rows={rows}
-        className="input font-mono resize-y text-xs bg-jarvis-panel border border-jarvis-cyan/30"
+        className="input font-mono resize-y text-xs bg-jarvis-panel border border-jarvis-cyan/30 relative z-30"
         value={draft}
         onChange={e => setDraft(e.target.value)}
         onBlur={onBlur}

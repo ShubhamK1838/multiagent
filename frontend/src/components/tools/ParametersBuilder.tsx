@@ -50,10 +50,16 @@ export function ParametersBuilder({ schema, onChange }: ParametersBuilderProps) 
 
   const removeRow = (index: number) => commit(rows.filter((_, i) => i !== index))
 
-  const addRow = () => commit([...rows, { name: '', type: 'string', description: '', required: false }])
+  const addRow = () => {
+    let newName = `param_${rows.length + 1}`
+    while (rows.some(r => r.name === newName)) {
+      newName = newName + '_'
+    }
+    commit([...rows, { name: newName, type: 'string', description: '', required: false }])
+  }
 
   return (
-    <div className="space-y-2 relative z-20">
+    <div className="space-y-2 relative">
       <p className="text-xs text-jarvis-cyan/70 font-mono">
         Parameters the AI will fill when calling this tool. Use the names as
         <code className="ml-1 px-1 bg-jarvis-cyan/10 border border-jarvis-cyan/30 text-jarvis-cyan font-bold">${'{'}name{'}'}</code>
@@ -85,25 +91,25 @@ export function ParametersBuilder({ schema, onChange }: ParametersBuilderProps) 
             className="grid grid-cols-1 sm:grid-cols-[1fr_120px_2fr_80px_28px] gap-2 items-center"
           >
             <input
-              className="input font-mono text-xs"
+              className="input font-mono text-xs relative z-30"
               placeholder="param_name"
               value={row.name}
               onChange={e => updateRow(i, { name: e.target.value })}
             />
             <select
-              className="input text-xs"
+              className="input text-xs relative z-30"
               value={row.type}
               onChange={e => updateRow(i, { type: e.target.value as JsonSchemaType })}
             >
               {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
             <input
-              className="input text-xs"
+              className="input text-xs relative z-30"
               placeholder="What this parameter is for…"
               value={row.description}
               onChange={e => updateRow(i, { description: e.target.value })}
             />
-            <div className="flex justify-center">
+            <div className="flex justify-center relative z-30">
               <Toggle
                 checked={row.required}
                 onChange={(next) => updateRow(i, { required: next })}
@@ -113,7 +119,7 @@ export function ParametersBuilder({ schema, onChange }: ParametersBuilderProps) 
             <button
               type="button"
               onClick={() => removeRow(i)}
-              className="btn-ghost p-1.5 text-jarvis-cyan/60 hover:text-red-400 justify-self-center"
+              className="btn-ghost p-1.5 text-jarvis-cyan/60 hover:text-red-400 justify-self-center relative z-30"
               title="Remove"
             >
               <X size={13} />
@@ -125,7 +131,7 @@ export function ParametersBuilder({ schema, onChange }: ParametersBuilderProps) 
       <button
         type="button"
         onClick={addRow}
-        className="text-xs font-mono font-bold uppercase tracking-wider text-jarvis-cyan hover:text-white flex items-center gap-1 px-3 py-1.5 border border-dashed border-jarvis-cyan/40 hover:border-jarvis-cyan bg-jarvis-cyan/5 hover:bg-jarvis-cyan/20 transition-all duration-200 mt-2"
+        className="text-xs font-mono font-bold uppercase tracking-wider text-jarvis-cyan hover:text-white flex items-center gap-1 px-3 py-1.5 border border-dashed border-jarvis-cyan/40 hover:border-jarvis-cyan bg-jarvis-cyan/5 hover:bg-jarvis-cyan/20 transition-all duration-200 mt-2 cursor-pointer relative z-30"
       >
         <Plus size={12} /> Add parameter
       </button>
