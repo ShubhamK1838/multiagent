@@ -31,18 +31,13 @@ public class PostgresQueryToolHandler implements ToolHandler {
             return ToolExecutionResult.error("Query parameter is missing or empty.");
         }
 
-        // Basic safety check to encourage read-only queries.
-        if (!query.trim().toUpperCase().startsWith("SELECT") && !query.trim().toUpperCase().startsWith("EXPLAIN")) {
-            return ToolExecutionResult.error("Only SELECT and EXPLAIN queries are allowed for safety reasons.");
-        }
-
         try {
             List<Map<String, Object>> results = jdbcTemplate.queryForList(query);
             String jsonResult = objectMapper.writeValueAsString(results);
             return ToolExecutionResult.success(jsonResult);
         } catch (Exception e) {
             log.error("Failed to execute postgres query: {}", query, e);
-            return ToolExecutionResult.error("Database query failed: " + e.getMessage());
+            return ToolExecutionResult.error("Database query failed: " + e.getMessage()+" cause: "+e.getCause());
         }
     }
 }
