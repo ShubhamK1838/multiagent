@@ -53,6 +53,13 @@ export const settingsApi = {
 export const ragApi = {
   ingest: (title: string, content: string, source?: string) =>
     api.post('/rag/ingest', { title, content, source }).then(r => r.data),
+  upload: (file: File, title?: string, source?: string) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    if (title) formData.append('title', title)
+    if (source) formData.append('source', source)
+    return api.post('/rag/upload', formData).then(r => r.data)
+  },
   search: (query: string) =>
     api.get('/rag/search', { params: { query } }).then(r => r.data),
 }
