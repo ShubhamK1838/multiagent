@@ -13,26 +13,35 @@ export function RAGPanel() {
   const [title, setTitle] = useState('')
   const [source, setSource] = useState('')
   const [content, setContent] = useState('')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [mode, setMode] = useState<IngestMode>('file')
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<string | null>(null)
   const [status, setStatus] = useState<Status>('idle')
   const [message, setMessage] = useState('')
 
-  const handleFile = (file: File, text: string) => {
-    setContent(text)
+  const handleFile = (file: File) => {
+    setSelectedFile(file)
     if (!title) setTitle(stripExt(file.name))
     if (!source) setSource(file.name)
   }
 
   const ingest = async () => {
-    if (!title || !content) return
+    if (mode === 'file' && !selectedFile) return
+    if (mode === 'paste' && (!title || !content)) return
+
     setStatus('loading')
     try {
-      await ragApi.ingest(title, content, source)
-      setStatus('success')
-      setMessage(`"${title}" ingested · ${content.length.toLocaleString()} chars`)
-      setTitle(''); setSource(''); setContent('')
+      if (mode === 'file' && selectedFile) {
+        await ragApi.upload(selectedFile, title, source)
+        setStatus('success')
+        setMessage(`"${title || selectedFile.name}" uploaded successfully`)
+      } else {
+        await ragApi.ingest(title, content, source)
+        setStatus('success')
+        setMessage(`"${title}" ingested · ${content.length.toLocaleString()} chars`)
+      }
+      setTitle(''); setSource(''); setContent(''); setSelectedFile(null)
     } catch (e) {
       setStatus('error')
       setMessage(e instanceof Error ? e.message : 'Ingestion failed')
@@ -52,7 +61,9 @@ export function RAGPanel() {
     }
   }
 
-  const canIngest = !!title && !!content && status !== 'loading'
+  const canIngest = mode === 'file'
+    ? !!selectedFile && status !== 'loading'
+    : !!title && !!content && status !== 'loading'
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-8">
@@ -155,7 +166,9 @@ export function RAGPanel() {
 
           <div className="flex items-center justify-between">
             <p className="text-xs text-gray-500 font-mono">
-              {content ? `${content.length.toLocaleString()} chars ready` : 'no content yet'}
+              {mode === 'file'
+                ? (selectedFile ? `${(selectedFile.size / 1024).toFixed(1)} KB ready` : 'no file selected')
+                : (content ? `${content.length.toLocaleString()} chars ready` : 'no content yet')}
             </p>
             <button
               onClick={ingest}

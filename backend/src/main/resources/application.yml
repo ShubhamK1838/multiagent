@@ -2,6 +2,11 @@ spring:
   application:
     name: ai-framework
 
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/aiframework}
     username: ${DB_USER:postgres}

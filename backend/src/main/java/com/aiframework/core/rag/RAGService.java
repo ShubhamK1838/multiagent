@@ -14,9 +14,17 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.DigestUtils;
 
 import java.nio.charset.StandardCharsets;
+import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
+import org.apache.tika.parser.AutoDetectParser;
+import org.apache.tika.parser.ParseContext;
+import org.apache.tika.sax.BodyContentHandler;
+import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
 @Service
@@ -91,6 +99,37 @@ public class RAGService {
             documentChunkRepository.save(documentChunk);
         }
         log.info("Ingested document '{}' as {} chunks", title, chunks.size());
+    }
+
+    @Transactional
+    public void ingestFile(MultipartFile file, String title, String source) {
+        if (title == null || title.isBlank()) {
+            title = file.getOriginalFilename();
+        }
+        if (source == null || source.isBlank()) {
+            source = file.getOriginalFilename();
+        }
+
+        try (InputStream stream = file.getInputStream()) {
+            AutoDetectParser parser = new AutoDetectParser();
+            BodyContentHandler handler = new BodyContentHandler(-1); // -1 removes character limit
+            Metadata metadata = new Metadata();
+            metadata.set(TikaCoreProperties.RESOURCE_NAME_KEY, file.getOriginalFilename());
+            ParseContext context = new ParseContext();
+
+            parser.parse(stream, handler, metadata, context);
+            String content = handler.toString();
+
+            if (content.isBlank()) {
+                throw new RuntimeException("No text could be extracted from the file.");
+            }
+
+            ingestDocument(title, source, content);
+
+        } catch (Exception e) {
+            log.error("Failed to parse and ingest file: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to process file: " + e.getMessage());
+        }
     }
 
     private List<String> chunkText(String text, int chunkSize, int overlap) {
