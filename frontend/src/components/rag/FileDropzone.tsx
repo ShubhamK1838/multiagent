@@ -4,14 +4,14 @@ import { clsx } from 'clsx'
 import { FileText, FileUp, X } from 'lucide-react'
 
 interface FileDropzoneProps {
-  onFile: (file: File, text: string) => void
+  onFile: (file: File) => void
   disabled?: boolean
   accept?: string
   maxBytes?: number
 }
 
-const DEFAULT_ACCEPT = '.txt,.md,.json,.csv,.html,.xml,.yml,.yaml,.log,text/*'
-const DEFAULT_MAX = 5 * 1024 * 1024
+const DEFAULT_ACCEPT = '.txt,.md,.json,.csv,.html,.xml,.yml,.yaml,.log,text/*,application/pdf,.pdf'
+const DEFAULT_MAX = 100 * 1024 * 1024
 
 export function FileDropzone({ onFile, disabled, accept = DEFAULT_ACCEPT, maxBytes = DEFAULT_MAX }: FileDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -19,20 +19,14 @@ export function FileDropzone({ onFile, disabled, accept = DEFAULT_ACCEPT, maxByt
   const [error, setError] = useState<string | null>(null)
   const [active, setActive] = useState<{ name: string; bytes: number } | null>(null)
 
-  const readFile = useCallback((file: File) => {
+  const handleFile = useCallback((file: File) => {
     setError(null)
     if (file.size > maxBytes) {
       setError(`File exceeds the ${(maxBytes / 1024 / 1024).toFixed(0)} MB limit`)
       return
     }
-    const reader = new FileReader()
-    reader.onerror = () => setError('Failed to read file')
-    reader.onload = () => {
-      const text = String(reader.result ?? '')
-      setActive({ name: file.name, bytes: file.size })
-      onFile(file, text)
-    }
-    reader.readAsText(file)
+    setActive({ name: file.name, bytes: file.size })
+    onFile(file)
   }, [maxBytes, onFile])
 
   const onDrop = (e: React.DragEvent) => {
@@ -40,12 +34,12 @@ export function FileDropzone({ onFile, disabled, accept = DEFAULT_ACCEPT, maxByt
     setDragging(false)
     if (disabled) return
     const file = e.dataTransfer.files?.[0]
-    if (file) readFile(file)
+    if (file) handleFile(file)
   }
 
   const onSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) readFile(file)
+    if (file) handleFile(file)
     e.target.value = ''
   }
 
@@ -92,7 +86,7 @@ export function FileDropzone({ onFile, disabled, accept = DEFAULT_ACCEPT, maxByt
           {dragging ? 'Drop to upload' : 'Drop a file here or click to browse'}
         </p>
         <p className="text-xs text-gray-500 font-mono mt-1">
-          .txt · .md · .json · .csv · .html · .xml — up to {(maxBytes / 1024 / 1024).toFixed(0)} MB
+          .txt · .md · .json · .csv · .html · .xml · .pdf — up to {(maxBytes / 1024 / 1024).toFixed(0)} MB
         </p>
       </motion.div>
 
