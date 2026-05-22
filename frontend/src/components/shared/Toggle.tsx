@@ -30,15 +30,23 @@ export function Toggle({ checked, onChange, label, disabled, size = 'md' }: Togg
       onClick={() => !disabled && onChange(!checked)}
       className={clsx(
         'relative inline-flex shrink-0 rounded-full transition-colors duration-200 outline-none',
-        'focus-visible:ring-2 focus-visible:ring-violet-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950',
+        'focus-visible:ring-2 focus-visible:ring-jarvis-cyan/60 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950',
         cfg.track,
-        checked ? 'bg-violet-600' : 'bg-gray-700',
+        checked ? 'bg-jarvis-cyan/80 border border-jarvis-cyan' : 'bg-jarvis-panel border border-jarvis-cyan/30',
         disabled && 'opacity-50 cursor-not-allowed'
       )}
+      style={{
+         boxShadow: checked ? '0 0 10px rgba(0,212,255,0.4), inset 0 0 5px rgba(0,212,255,0.4)' : 'inset 0 0 5px rgba(0,212,255,0.1)'
+      }}
     >
       <motion.span
-        className={clsx('absolute rounded-full bg-white shadow-md', cfg.thumbDim)}
-        style={{ top: cfg.top, left: 0 }}
+        className={clsx('absolute rounded-full shadow-md', cfg.thumbDim)}
+        style={{
+          top: cfg.top,
+          left: 0,
+          background: checked ? '#ffffff' : 'rgba(0,212,255,0.4)',
+          boxShadow: checked ? '0 0 5px #ffffff' : 'none'
+        }}
         animate={{ x: checked ? cfg.on : cfg.off }}
         transition={{ type: 'spring', damping: 24, stiffness: 420, mass: 0.6 }}
       />

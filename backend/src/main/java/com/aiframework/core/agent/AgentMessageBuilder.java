@@ -28,11 +28,16 @@ public class AgentMessageBuilder {
     private final ToolRegistry toolRegistry;
     private final RAGService ragService;
     private final SettingsService settings;
+    private final ContextManager contextManager;
 
     public List<Message> buildInitialMessages(List<Message> history, String userMessage) {
         List<Message> messages = new ArrayList<>();
         messages.add(buildSystemMessage(userMessage));
-        appendHistory(messages, history);
+
+        // Use ContextManager to prune history
+        List<Message> prunedHistory = contextManager.pruneHistory(history);
+        appendHistory(messages, prunedHistory);
+
         messages.add(new UserMessage(CURRENT_REQUEST_PREFIX + userMessage));
         return messages;
     }

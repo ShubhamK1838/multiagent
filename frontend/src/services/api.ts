@@ -16,6 +16,9 @@ export const chatApi = {
   sendMessage: (conversationId: string, message: string) =>
     api.post(`/chat/conversations/${conversationId}/messages`, { message }).then(r => r.data),
 
+  cancelExecution: (conversationId: string) =>
+    api.post(`/chat/conversations/${conversationId}/cancel`).then(r => r.data),
+
   deleteConversation: (conversationId: string) =>
     api.delete(`/chat/conversations/${conversationId}`).then(r => r.data),
 }

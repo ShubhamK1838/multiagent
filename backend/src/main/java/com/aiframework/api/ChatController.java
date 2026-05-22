@@ -1,6 +1,7 @@
 package com.aiframework.api;
 
 import com.aiframework.core.agent.AgentOrchestrator;
+import com.aiframework.core.agent.CancellationService;
 import com.aiframework.core.event.EventBus;
 import com.aiframework.domain.entity.Conversation;
 import com.aiframework.service.ConversationService;
@@ -27,6 +28,7 @@ public class ChatController {
 
     private final ConversationService conversationService;
     private final AgentOrchestrator agentOrchestrator;
+    private final CancellationService cancellationService;
     private final EventBus eventBus;
     private final ObjectMapper objectMapper;
 
@@ -71,6 +73,12 @@ public class ChatController {
 
         agentOrchestrator.run(conversationId, history, userMessage);
         return Map.of("status", "processing", "conversationId", conversationId);
+    }
+
+    @PostMapping("/conversations/{conversationId}/cancel")
+    public Map<String, String> cancelExecution(@PathVariable String conversationId) {
+        cancellationService.cancel(conversationId);
+        return Map.of("status", "cancelled", "conversationId", conversationId);
     }
 
     @GetMapping(value = "/conversations/{conversationId}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)

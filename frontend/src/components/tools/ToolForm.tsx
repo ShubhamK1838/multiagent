@@ -47,7 +47,7 @@ export function ToolForm({ tool, onChange, onSave, onClose }: ToolFormProps) {
         </>
       }
     >
-      <div className="space-y-5">
+      <div className="space-y-5 relative z-20">
         <AnimatedTabs
           options={TABS.map(t => ({ id: t.id, label: t.label }))}
           value={tab}
@@ -84,14 +84,14 @@ function BasicTab({ tool, update }: TabProps) {
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="label block mb-1.5">Name <span className="text-red-300 normal-case">*</span></label>
+          <label className="label block mb-1.5">Name <span className="text-red-400 normal-case">*</span></label>
           <input
             className="input font-mono"
             value={tool.name ?? ''}
             onChange={e => update({ name: e.target.value })}
             placeholder="web_search"
           />
-          <p className="text-[11px] text-gray-500 mt-1">Snake_case identifier — what the AI calls.</p>
+          <p className="text-[10px] text-jarvis-cyan/50 mt-1 uppercase tracking-wider">Snake_case identifier — what the AI calls.</p>
         </div>
         <div>
           <label className="label block mb-1.5">Type</label>
@@ -108,7 +108,7 @@ function BasicTab({ tool, update }: TabProps) {
       </div>
 
       <div>
-        <label className="label block mb-1.5">Description <span className="text-red-300 normal-case">*</span></label>
+        <label className="label block mb-1.5">Description <span className="text-red-400 normal-case">*</span></label>
         <textarea
           className="input resize-none"
           rows={3}
@@ -118,20 +118,20 @@ function BasicTab({ tool, update }: TabProps) {
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-6">
-        <label className="flex items-center gap-2.5 cursor-pointer">
+      <div className="flex flex-wrap items-center gap-6 p-4 border border-jarvis-cyan/20 bg-jarvis-cyan/5">
+        <label className="flex items-center gap-3 cursor-pointer">
           <Toggle
             checked={tool.enabled ?? true}
             onChange={(next) => update({ enabled: next })}
           />
-          <span className="text-sm text-gray-300">Enabled — available to the agent</span>
+          <span className="text-xs font-mono tracking-wider uppercase text-jarvis-cyan">Enabled (Available to agent)</span>
         </label>
-        <label className="flex items-center gap-2.5 cursor-pointer">
+        <label className="flex items-center gap-3 cursor-pointer">
           <Toggle
             checked={tool.requiresConfirmation ?? false}
             onChange={(next) => update({ requiresConfirmation: next })}
           />
-          <span className="text-sm text-gray-300">Requires confirmation</span>
+          <span className="text-xs font-mono tracking-wider uppercase text-jarvis-cyan">Requires confirmation</span>
         </label>
       </div>
     </div>
@@ -150,9 +150,9 @@ function ConfigTab({ tool, update }: TabProps) {
     return <BuiltinConfigForm config={config} onChange={setConfig} />
   }
   return (
-    <div className="rounded-lg border border-dashed border-gray-700 p-4 text-xs text-gray-500">
-      No structured editor for <span className="font-mono text-gray-300">{type}</span> tools yet — use the
-      <span className="font-mono text-gray-300"> Raw JSON </span> tab to configure it.
+    <div className="border border-dashed border-jarvis-cyan/40 bg-jarvis-cyan/5 p-4 text-xs text-jarvis-cyan/70 font-mono text-center uppercase tracking-wider">
+      No structured editor for <span className="text-jarvis-cyan font-bold">{type}</span> tools yet — use the
+      <span className="text-jarvis-cyan font-bold"> Raw JSON </span> tab to configure it.
     </div>
   )
 }
@@ -182,7 +182,7 @@ function AdvancedTab({ tool, update }: TabProps) {
         onChange={handlerConfig => update({ handlerConfig })}
         rows={8}
       />
-      <p className="text-xs text-gray-500">
+      <p className="text-[10px] text-jarvis-cyan/50 font-mono uppercase tracking-wider">
         Edits made on the other tabs are reflected here in real time.
       </p>
     </div>
@@ -219,12 +219,13 @@ function JsonField({ label, value, onChange, rows }: JsonFieldProps) {
       <label className="label block mb-1.5">{label}</label>
       <textarea
         rows={rows}
-        className="input font-mono resize-y text-xs"
+        className="input font-mono resize-y text-xs bg-jarvis-panel border border-jarvis-cyan/30"
         value={draft}
         onChange={e => setDraft(e.target.value)}
         onBlur={onBlur}
+        style={{ color: '#00ff88' }}
       />
-      {error && <p className="text-xs text-red-300 mt-1">{error}</p>}
+      {error && <p className="text-[10px] text-red-400 font-mono mt-1 uppercase tracking-wider">{error}</p>}
     </div>
   )
 }

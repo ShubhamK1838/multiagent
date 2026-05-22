@@ -32,21 +32,30 @@ public class AgentOrchestrator {
     private final EventBus eventBus;
     private final SettingsService settings;
     private final ConversationService conversationService;
+    private final CancellationService cancellationService;
 
     @Async
     public void run(String conversationId, List<Message> history, String userMessage) {
+        cancellationService.clear(conversationId);
         publishAgentStart(conversationId, userMessage);
         List<Message> messages = messageBuilder.buildInitialMessages(history, userMessage);
 
         IterationOutcome outcome = runIterationLoop(conversationId, messages);
         if (outcome == IterationOutcome.EXHAUSTED) {
             publishAgentEnd(conversationId, MAX_ITERATIONS_MESSAGE);
+        } else if (outcome == IterationOutcome.CANCELLED) {
+            publishAgentEnd(conversationId, "Agent execution was cancelled by the user.");
         }
+
+        cancellationService.clear(conversationId);
     }
 
     private IterationOutcome runIterationLoop(String conversationId, List<Message> messages) {
         int maxIterations = settings.getInt("agent.max_iterations", DEFAULT_MAX_ITERATIONS);
         for (int i = 0; i < maxIterations; i++) {
+            if (cancellationService.isCancelled(conversationId)) {
+                return IterationOutcome.CANCELLED;
+            }
             IterationOutcome outcome = runSingleIteration(conversationId, messages);
             if (outcome != IterationOutcome.CONTINUE) return outcome;
         }
@@ -56,6 +65,10 @@ public class AgentOrchestrator {
     private IterationOutcome runSingleIteration(String conversationId, List<Message> messages) {
         LLMResponse response = llmService.chat(messages, conversationId);
 
+        if (cancellationService.isCancelled(conversationId)) {
+            return IterationOutcome.CANCELLED;
+        }
+
         if (!response.isToolCall()) {
             publishAgentEnd(conversationId, response.getContent());
             return IterationOutcome.DONE;
@@ -63,6 +76,10 @@ public class AgentOrchestrator {
 
         publishThinkingIfPresent(conversationId, response);
         ToolExecutionResult result = toolCallExecutor.execute(response, conversationId, messages);
+
+        if (cancellationService.isCancelled(conversationId)) {
+            return IterationOutcome.CANCELLED;
+        }
 
         if (result == null) {
             return IterationOutcome.CONTINUE; // unknown tool, model will retry
@@ -99,5 +116,5 @@ public class AgentOrchestrator {
         }
     }
 
-    private enum IterationOutcome { CONTINUE, DONE, PAUSED, EXHAUSTED }
+    private enum IterationOutcome { CONTINUE, DONE, PAUSED, EXHAUSTED, CANCELLED }
 }

@@ -4,6 +4,7 @@ import { chatApi } from '../services/api'
 
 export function useChat(conversationId: string | null) {
   const [sending, setSending] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
   const { messages, streamingContent, isThinking, addMessage, setMessages } = useChatStore()
 
   useEffect(() => {
@@ -37,5 +38,15 @@ export function useChat(conversationId: string | null) {
     }
   }
 
-  return { convMessages, streamContent, thinking, sending, sendMessage }
+  const cancelExecution = async () => {
+    if (!conversationId) return
+    setCancelling(true)
+    try {
+      await chatApi.cancelExecution(conversationId)
+    } finally {
+      setCancelling(false)
+    }
+  }
+
+  return { convMessages, streamContent, thinking, sending, cancelling, sendMessage, cancelExecution }
 }

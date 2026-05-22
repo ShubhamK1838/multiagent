@@ -224,7 +224,7 @@ function ToolRow({ tool, onEdit, onToggle, onDelete }: ToolRowProps) {
       style={{
         background: tool.enabled ? 'rgba(7,21,32,0.8)' : 'rgba(7,21,32,0.4)',
         border: '1px solid rgba(0,212,255,0.1)',
-        opacity: tool.enabled ? 1 : 0.55,
+        opacity: tool.enabled ? 1 : 0.4, // changed from 0.55 to avoid full disabled look
       }}
     >
       <div className="flex items-start justify-between gap-4 px-4 py-3">

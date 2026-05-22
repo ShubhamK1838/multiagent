@@ -53,10 +53,10 @@ export function ParametersBuilder({ schema, onChange }: ParametersBuilderProps) 
   const addRow = () => commit([...rows, { name: '', type: 'string', description: '', required: false }])
 
   return (
-    <div className="space-y-2">
-      <p className="text-xs text-gray-500">
+    <div className="space-y-2 relative z-20">
+      <p className="text-xs text-jarvis-cyan/70 font-mono">
         Parameters the AI will fill when calling this tool. Use the names as
-        <code className="ml-1 px-1 bg-gray-800 rounded text-emerald-300">${'{'}name{'}'}</code>
+        <code className="ml-1 px-1 bg-jarvis-cyan/10 border border-jarvis-cyan/30 text-jarvis-cyan font-bold">${'{'}name{'}'}</code>
         placeholders in the URL, headers, query params, or body.
       </p>
 
@@ -64,7 +64,7 @@ export function ParametersBuilder({ schema, onChange }: ParametersBuilderProps) 
         {rows.length > 0 && (
           <motion.div
             layout
-            className="hidden sm:grid grid-cols-[1fr_120px_2fr_80px_28px] gap-2 px-1 text-[10px] font-mono text-gray-500 uppercase tracking-wider"
+            className="hidden sm:grid grid-cols-[1fr_120px_2fr_80px_28px] gap-2 px-1 text-[10px] font-mono text-jarvis-cyan/80 uppercase tracking-[0.1em]"
           >
             <span>Name</span>
             <span>Type</span>
@@ -113,7 +113,7 @@ export function ParametersBuilder({ schema, onChange }: ParametersBuilderProps) 
             <button
               type="button"
               onClick={() => removeRow(i)}
-              className="btn-ghost p-1.5 text-gray-500 hover:text-red-300 justify-self-center"
+              className="btn-ghost p-1.5 text-jarvis-cyan/60 hover:text-red-400 justify-self-center"
               title="Remove"
             >
               <X size={13} />
@@ -125,7 +125,7 @@ export function ParametersBuilder({ schema, onChange }: ParametersBuilderProps) 
       <button
         type="button"
         onClick={addRow}
-        className="text-xs font-mono text-violet-300 hover:text-violet-200 flex items-center gap-1 px-2 py-1 rounded border border-dashed border-gray-700 hover:border-violet-500/40"
+        className="text-xs font-mono font-bold uppercase tracking-wider text-jarvis-cyan hover:text-white flex items-center gap-1 px-3 py-1.5 border border-dashed border-jarvis-cyan/40 hover:border-jarvis-cyan bg-jarvis-cyan/5 hover:bg-jarvis-cyan/20 transition-all duration-200 mt-2"
       >
         <Plus size={12} /> Add parameter
       </button>
