@@ -50,9 +50,11 @@ public class ResponseParser {
     private LLMResponse buildToolCallResponse(JsonNode root, String responseText) {
         JsonNode toolCall = root.get("tool_call");
         String toolName = toolCall.path("name").asText();
-        Map<String, Object> args = objectMapper.convertValue(
-                toolCall.get("arguments"),
-                objectMapper.getTypeFactory().constructMapType(Map.class, String.class, Object.class));
+        JsonNode argsNode = toolCall.get("arguments");
+        Map<String, Object> args = (argsNode != null && !argsNode.isNull())
+                ? objectMapper.convertValue(argsNode,
+                        objectMapper.getTypeFactory().constructMapType(Map.class, String.class, Object.class))
+                : Map.of();
         return LLMResponse.toolCall(responseText, toolName, args);
     }
 

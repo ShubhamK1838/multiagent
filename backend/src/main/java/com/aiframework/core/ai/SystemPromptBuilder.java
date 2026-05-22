@@ -20,51 +20,52 @@ import java.util.List;
 public class SystemPromptBuilder {
 
     private static final String HISTORY_RULES =
-            "## Conversation History vs. Current Request — CRITICAL\n" +
+            "## Conversation & Tool-Call History — CRITICAL\n" +
             "\n" +
-            "The messages you receive contain TWO kinds of content. Treat them differently:\n" +
+            "The message list you receive may contain three kinds of content:\n" +
             "\n" +
-            "1. **Past turns (history)** — every message except the very LAST user message.\n" +
-            "   These exist only as background context: prior questions, prior answers, and\n" +
-            "   results of tool calls that ALREADY ran. They are KNOWLEDGE, not instructions.\n" +
-            "   - Do NOT re-execute a tool just because it appears in history.\n" +
-            "   - Do NOT treat an old user question as the active task.\n" +
-            "   - Use history only to: maintain continuity, recall facts the user mentioned,\n" +
-            "     and avoid repeating work whose result is already visible.\n" +
+            "1. **Past conversation turns** — prior user questions and your prior answers.\n" +
+            "   Use these only for continuity. Do NOT re-execute work already done.\n" +
             "\n" +
-            "2. **Current request** — the LAST user message in the conversation.\n" +
-            "   This is the ONLY task you must act on right now. Read it carefully.\n" +
-            "   - If it asks a fresh question, answer that fresh question.\n" +
-            "   - If it depends on earlier context, USE history but still answer the new ask.\n" +
-            "   - If a tool you previously called already returned the needed info, reuse it\n" +
-            "     from history instead of calling the tool again.\n" +
+            "2. **Tool call / result pairs** — assistant messages containing a TOOL_CALL you\n" +
+            "   already issued, followed by user messages tagged [TOOL_RESULT]. These show\n" +
+            "   what you already did and what data you received. Do NOT re-call a tool whose\n" +
+            "   result is already present in history.\n" +
             "\n" +
-            "If the current request is unrelated to earlier turns, IGNORE the earlier turns\n" +
-            "rather than blending old context into the new answer.\n";
+            "3. **The active task** — the user message tagged [CURRENT REQUEST].\n" +
+            "   This is the goal you must complete. You stay on this task across ALL\n" +
+            "   iterations until you can give a complete FINAL_ANSWER.\n" +
+            "   - After receiving a [TOOL_RESULT], analyse it and decide your NEXT action\n" +
+            "     (another TOOL_CALL or a FINAL_ANSWER). Never stop early.\n" +
+            "   - A [TOOL_RESULT] message is NOT a new user request — it is data for you\n" +
+            "     to use. Keep working toward the [CURRENT REQUEST] goal.\n";
 
     private static final String RESPONSE_RULES =
             "## Response Format — CRITICAL\n" +
             "\n" +
             "Every response MUST be a single JSON object. Never reply with plain text.\n" +
-            "You must use the following JSON schema strictly:\n" +
-            "{\n" +
-            "  \"type\": \"FINAL_ANSWER | TOOL_CALL | INPUT_FORM\",\n" +
-            "  \"response\": \"<The text to show the user (your final answer OR your thinking before a tool call)>\",\n" +
-            "  \"tool_call\": {\n" +
-            "    \"name\": \"<tool_name>\",\n" +
-            "    \"arguments\": { <args matching the tool's parameter schema> }\n" +
-            "  }\n" +
-            "}\n" +
+            "You must use exactly one of these three forms:\n" +
             "\n" +
-            "### Rules — strict\n" +
+            "**TOOL_CALL** — when you need to call a tool to complete the task:\n" +
+            "{\"type\":\"TOOL_CALL\",\"response\":\"<your reasoning>\",\"tool_call\":{\"name\":\"<tool>\",\"arguments\":{<args>}}}\n" +
+            "\n" +
+            "**INPUT_FORM** — when you need information from the user (use tool name 'ask_user'):\n" +
+            "{\"type\":\"INPUT_FORM\",\"response\":\"<your reasoning>\",\"tool_call\":{\"name\":\"ask_user\",\"arguments\":{<schema>}}}\n" +
+            "\n" +
+            "**FINAL_ANSWER** — only when the task is fully complete and no more tools are needed:\n" +
+            "{\"type\":\"FINAL_ANSWER\",\"response\":\"<complete answer to show the user>\"}\n" +
+            "\n" +
+            "### Multi-step tool chaining — CRITICAL\n" +
+            "- You MUST keep calling tools until you have ALL the information needed.\n" +
+            "- After receiving a [TOOL_RESULT], if the task is not yet complete, issue ANOTHER TOOL_CALL.\n" +
+            "- Only use FINAL_ANSWER when you have gathered everything and can give a complete answer.\n" +
+            "- A partial or uncertain answer must NOT be a FINAL_ANSWER — call a tool instead.\n" +
+            "\n" +
+            "### Format rules — strict\n" +
             "- Always output exactly one JSON object starting with `{` and ending with `}`.\n" +
             "- Always include the 'type' and 'response' fields.\n" +
-            "- If type is FINAL_ANSWER, put your full final answer in the 'response' field and OMIT the 'tool_call' field.\n" +
-            "- If type is TOOL_CALL or INPUT_FORM, put your reasoning in the 'response' field, and include the 'tool_call' object.\n" +
-            "- For INPUT_FORM, use the tool name 'ask_user'.\n" +
             "- Never wrap the JSON in markdown code fences.\n" +
-            "- Never narrate before or after the JSON.\n" +
-            "- Your response addresses ONLY the latest user message; history is reference only.\n";
+            "- Never narrate before or after the JSON.\n";
 
     public SystemMessage build(String basePrompt, List<String> toolDescriptions, String ragContext) {
         StringBuilder prompt = new StringBuilder(basePrompt);
