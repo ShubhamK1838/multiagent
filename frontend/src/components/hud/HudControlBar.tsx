@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { VoiceCommander } from './VoiceCommander';
 
 interface HudControlBarProps {
   isDrawingMode: boolean;
@@ -7,6 +8,7 @@ interface HudControlBarProps {
   onResetLayout: () => void;
   onAskAI: () => void;
   onClear: () => void;
+  onVoiceCommand: (text: string) => void;
   isAiProcessing?: boolean;
 }
 
@@ -16,6 +18,7 @@ export const HudControlBar: React.FC<HudControlBarProps> = ({
   onResetLayout,
   onAskAI,
   onClear,
+  onVoiceCommand,
   isAiProcessing
 }) => {
   return (
@@ -81,6 +84,9 @@ export const HudControlBar: React.FC<HudControlBarProps> = ({
               </>
             )}
           </button>
+          
+          <div className="w-px h-4 bg-cyan-500/30 mx-1" />
+          <VoiceCommander onCommand={onVoiceCommand} isProcessing={isAiProcessing} />
         </>
       )}
     </div>

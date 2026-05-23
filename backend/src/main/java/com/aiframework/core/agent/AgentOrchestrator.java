@@ -37,11 +37,11 @@ public class AgentOrchestrator {
     private final LogStreamService logStreamService;
 
     @Async
-    public void run(String conversationId, List<Message> history, String userMessage) {
+    public void run(String conversationId, List<Message> history, String userMessage, String imageBase64) {
         cancellationService.clear(conversationId);
         logStreamService.agent("ORCHESTRATOR", "◈ AGENT_START conv=" + conversationId.substring(0, 8) + "... query=" + truncate(userMessage, 60));
         publishAgentStart(conversationId, userMessage);
-        List<Message> messages = messageBuilder.buildInitialMessages(history, userMessage);
+        List<Message> messages = messageBuilder.buildInitialMessages(history, userMessage, imageBase64);
 
         IterationOutcome outcome = runIterationLoop(conversationId, messages);
         if (outcome == IterationOutcome.EXHAUSTED) {

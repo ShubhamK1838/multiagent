@@ -47,6 +47,7 @@ interface GestureCanvasProps {
   onDragEnd?: (x: number, y: number) => void;
   enabled?: boolean;
   smartShapes?: boolean;
+  injectedShape?: any;
 }
 
 const TRASH_ZONE_SIZE = 150;
@@ -87,7 +88,8 @@ export const GestureCanvas: React.FC<GestureCanvasProps> = ({
   onPanelScale,
   onDragEnd,
   enabled = true,
-  smartShapes = true
+  smartShapes = true,
+  injectedShape
 }) => {
   const { cursors } = useWebcamGestures({ onGesture, enabled });
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -361,6 +363,31 @@ export const GestureCanvas: React.FC<GestureCanvasProps> = ({
 
     drawFrame();
   }, [cursors, isDrawingMode, isDrawing, enabled, onCanvasData, onPanelDrag, onPanelScale, onDragEnd, drawFrame, smartShapes]);
+
+  useEffect(() => {
+    if (injectedShape) {
+      const { shape, x, y, size, color } = injectedShape;
+      const r = size || 50;
+      const newShape: VectorShape = {
+        id: crypto.randomUUID(),
+        type: shape === 'line' ? 'path' : shape as ShapeType,
+        color: color || '#00d4ff',
+        bounds: { minX: x - r, minY: y - r, maxX: x + r, maxY: y + r }
+      };
+      
+      if (shape === 'circle') {
+        newShape.cx = x; newShape.cy = y; newShape.radius = r;
+      } else if (shape === 'rectangle') {
+        newShape.x = x - r/2; newShape.y = y - r/2; newShape.width = r; newShape.height = r;
+      } else if (shape === 'line') {
+        newShape.type = 'line';
+        newShape.x1 = x - r; newShape.y1 = y - r; newShape.x2 = x + r; newShape.y2 = y + r;
+      }
+      
+      shapesRef.current.push(newShape);
+      drawFrame();
+    }
+  }, [injectedShape]);
 
   // Derived state for Trash Zone UI
   const isHoveringTrash = cursors.some(c => c.isGrabbing && c.x > window.innerWidth - TRASH_ZONE_SIZE && c.y > window.innerHeight - TRASH_ZONE_SIZE);

@@ -30,7 +30,7 @@ public class AgentMessageBuilder {
     private final SettingsService settings;
     private final ContextManager contextManager;
 
-    public List<Message> buildInitialMessages(List<Message> history, String userMessage) {
+    public List<Message> buildInitialMessages(List<Message> history, String userMessage, String imageBase64) {
         List<Message> messages = new ArrayList<>();
         messages.add(buildSystemMessage(userMessage));
 
@@ -38,7 +38,12 @@ public class AgentMessageBuilder {
         List<Message> prunedHistory = contextManager.pruneHistory(history);
         appendHistory(messages, prunedHistory);
 
-        messages.add(new UserMessage(CURRENT_REQUEST_PREFIX + userMessage));
+        if (imageBase64 != null && !imageBase64.isEmpty()) {
+            messages.add(new UserMessage(CURRENT_REQUEST_PREFIX + userMessage));
+        } else {
+            messages.add(new UserMessage(CURRENT_REQUEST_PREFIX + userMessage));
+        }
+        
         return messages;
     }
 

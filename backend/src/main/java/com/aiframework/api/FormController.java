@@ -53,7 +53,7 @@ public class FormController {
 
         var history = conversationService.getHistory(formRequest.getConversationId());
         String formDataMessage = "User provided form data: " + formData;
-        agentOrchestrator.run(conversationId, history, formDataMessage);
+        agentOrchestrator.run(conversationId, history, formDataMessage, null);
 
         return Map.of("status", "submitted", "formId", formId.toString());
     }

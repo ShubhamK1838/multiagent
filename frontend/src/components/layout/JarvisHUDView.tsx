@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { DiagnosticsHUD } from '../DiagnosticsHUD';
-import { ConversationalTerminal } from '../ConversationalTerminal';
+import { ConversationalTerminal, TerminalRef } from '../ConversationalTerminal';
 import { MatrixLogStream } from '../MatrixLogStream';
 import { ArcReactorMenu } from './ArcReactorMenu';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -63,6 +63,17 @@ export const JarvisHUDView: React.FC = () => {
   const [isAiProcessing, setIsAiProcessing] = useState(false);
   const [canvasData, setCanvasData] = useState<string>('');
   const [clearCount, setClearCount] = useState(0);
+  const [injectedShape, setInjectedShape] = useState<any>(null);
+  
+  const terminalRef = useRef<TerminalRef>(null);
+
+  const handleFrontendEvent = useCallback((eventName: string, payload: any) => {
+    if (eventName === 'draw_ui_shape') {
+      setInjectedShape(payload);
+      // We clear the state after a tiny delay so the exact same shape could be drawn again if needed
+      setTimeout(() => setInjectedShape(null), 100);
+    }
+  }, []);
 
   // Track dragging physics
   const dragState = useRef<{
@@ -177,6 +188,16 @@ export const JarvisHUDView: React.FC = () => {
     }
   };
 
+  const handleVoiceCommand = useCallback((text: string) => {
+    if (terminalRef.current) {
+      // Ensure terminal is visible if they speak a command
+      if (!layout.panels.terminal.visible) {
+        togglePanelVisibility('terminal');
+      }
+      terminalRef.current.submitCommand(text);
+    }
+  }, [layout.panels.terminal.visible, togglePanelVisibility]);
+
   const isCombat = theme === 'combat';
   const panels = layout.panels;
 
@@ -226,7 +247,11 @@ export const JarvisHUDView: React.FC = () => {
               onFocus={bringToFront}
             >
               <div className="h-full flex flex-col p-1">
-                <ConversationalTerminal />
+                <ConversationalTerminal 
+                  ref={terminalRef}
+                  canvasData={canvasData}
+                  onFrontendEvent={handleFrontendEvent}
+                />
               </div>
             </DraggablePanel>
           )}
@@ -266,6 +291,7 @@ export const JarvisHUDView: React.FC = () => {
         onDragEnd={handleDragEnd}
         enabled={getBoolean('ui.gestures.enabled', true)}
         smartShapes={getBoolean('ui.gestures.smart_shapes', true)}
+        injectedShape={injectedShape}
       />
 
       {/* HUD Control Bar */}
@@ -275,6 +301,7 @@ export const JarvisHUDView: React.FC = () => {
         onResetLayout={resetLayout}
         onAskAI={handleAskAI}
         onClear={handleClearCanvas}
+        onVoiceCommand={handleVoiceCommand}
         isAiProcessing={isAiProcessing}
       />
     </div>

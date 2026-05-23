@@ -62,6 +62,7 @@ public class ChatController {
             @RequestBody Map<String, String> body) {
 
         String userMessage = body.get("message");
+        String imageBase64 = body.get("image");
         UUID convId = UUID.fromString(conversationId);
 
         conversationService.saveMessage(convId, "user", userMessage);
@@ -76,7 +77,7 @@ public class ChatController {
             history = history.subList(history.size() - 20, history.size());
         }
 
-        agentOrchestrator.run(conversationId, history, userMessage);
+        agentOrchestrator.run(conversationId, history, userMessage, imageBase64);
         return Map.of("status", "processing", "conversationId", conversationId);
     }
 

@@ -13,8 +13,8 @@ export const chatApi = {
   getMessages: (conversationId: string) =>
     api.get(`/chat/conversations/${conversationId}/messages`).then(r => r.data),
 
-  sendMessage: (conversationId: string, message: string) =>
-    api.post(`/chat/conversations/${conversationId}/messages`, { message }).then(r => r.data),
+  sendMessage: (conversationId: string, message: string, imageBase64?: string) =>
+    api.post(`/chat/conversations/${conversationId}/messages`, { message, image: imageBase64 }).then(r => r.data),
 
   cancelExecution: (conversationId: string) =>
     api.post(`/chat/conversations/${conversationId}/cancel`).then(r => r.data),

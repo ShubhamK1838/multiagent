@@ -38,7 +38,16 @@ function formatTime() {
   return new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
-export const ConversationalTerminal: React.FC = () => {
+interface TerminalProps {
+  canvasData?: string;
+  onFrontendEvent?: (eventName: string, payload: any) => void;
+}
+
+export interface TerminalRef {
+  submitCommand: (text: string) => Promise<void>;
+}
+
+export const ConversationalTerminal = React.forwardRef<TerminalRef, TerminalProps>(({ canvasData, onFrontendEvent }, ref) => {
   const { conversationId, loading, resetConversation } = useHudConversation();
   const [input, setInput] = useState('');
   const [lines, setLines] = useState<TerminalLine[]>([]);
@@ -103,7 +112,16 @@ export const ConversationalTerminal: React.FC = () => {
           break;
         }
         case 'TOOL_RESULT':
-          addLine('tool_result', (event.content || '').substring(0, 200));
+          if (event.metadata?.frontend_event) {
+            try {
+              if (onFrontendEvent) onFrontendEvent(event.metadata.frontend_event as string, JSON.parse(event.content || '{}'));
+            } catch (e) {
+              console.error("Failed to parse frontend event payload", e);
+            }
+            addLine('system', `Executed UI Action: ${event.metadata.frontend_event}`);
+          } else {
+            addLine('tool_result', (event.content || '').substring(0, 200));
+          }
           break;
         case 'TOOL_ERROR':
           addLine('error', `Tool error: ${event.content}`);
@@ -137,11 +155,23 @@ export const ConversationalTerminal: React.FC = () => {
     addLine('user', msg);
 
     try {
-      await chatApi.sendMessage(conversationId, msg);
+      await chatApi.sendMessage(conversationId, msg, canvasData);
     } catch {
       addLine('error', 'Failed to send command — check backend connection');
     }
   };
+
+  React.useImperativeHandle(ref, () => ({
+    submitCommand: async (text: string) => {
+      if (!text.trim() || !conversationId || isProcessing) return;
+      addLine('user', text.trim());
+      try {
+        await chatApi.sendMessage(conversationId, text.trim(), canvasData);
+      } catch {
+        addLine('error', 'Failed to send voice command');
+      }
+    }
+  }), [conversationId, isProcessing, canvasData]);
 
   return (
     <div className="flex flex-col h-full bg-black/60 backdrop-blur-md border border-cyan-500/30 rounded-xl overflow-hidden shadow-[0_0_30px_rgba(0,212,255,0.1)] font-mono">
@@ -226,4 +256,4 @@ export const ConversationalTerminal: React.FC = () => {
       </form>
     </div>
   );
-};
+});
