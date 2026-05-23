@@ -59,3 +59,11 @@ logging:
   level:
     com.aiframework: DEBUG
     org.springframework.ai: INFO
+
+    org:
+      springframework:
+        web:
+          reactive:
+            function:
+              client:
+                ExchangeFunctions=TRACE:

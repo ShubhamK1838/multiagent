@@ -1,10 +1,16 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useCallback, useRef } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { DiagnosticsHUD } from '../DiagnosticsHUD';
 import { ConversationalTerminal } from '../ConversationalTerminal';
 import { MatrixLogStream } from '../MatrixLogStream';
 import { ArcReactorMenu } from './ArcReactorMenu';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useHudLayout } from '../../hooks/useHudLayout';
+import { useUiSettings } from '../../hooks/useUiSettings';
+import { DraggablePanel } from './DraggablePanel';
+import { GestureCanvas, AIAnnotation } from '../hud/GestureCanvas';
+import type { GestureType } from '../../hooks/useWebcamGestures';
+import { HudControlBar } from '../hud/HudControlBar';
 
 // Hex grid SVG background
 const HexBackground: React.FC = () => (
@@ -46,36 +52,135 @@ const CornerBrackets: React.FC = () => (
   </>
 );
 
-// Panel wrapper with glass effect
-const HudPanel: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 8 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -4 }}
-    transition={{ duration: 0.25 }}
-    className={`${className} h-full`}
-  >
-    {children}
-  </motion.div>
-);
 
 export const JarvisHUDView: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
-  const [visiblePanels, setVisiblePanels] = useState(new Set(['diagnostics', 'terminal', 'logs']));
+  const { layout, updatePanelPosition, updatePanelSize, togglePanelVisibility, bringToFront, resetLayout } = useHudLayout();
+  const { getBoolean } = useUiSettings();
+  
+  const [isDrawingMode, setIsDrawingMode] = useState(false);
+  const [annotations, setAnnotations] = useState<AIAnnotation[]>([]);
+  const [isAiProcessing, setIsAiProcessing] = useState(false);
+  const [canvasData, setCanvasData] = useState<string>('');
+  const [clearCount, setClearCount] = useState(0);
 
-  const togglePanel = (panel: string) => {
-    setVisiblePanels(prev => {
-      const next = new Set(prev);
-      if (next.has(panel)) {
-        next.delete(panel);
-      } else {
-        next.add(panel);
+  // Track dragging physics
+  const dragState = useRef<{
+    panelId: string | null,
+    offsetX: number,
+    offsetY: number,
+    initialWidth: number,
+    initialHeight: number
+  }>({ panelId: null, offsetX: 0, offsetY: 0, initialWidth: 0, initialHeight: 0 });
+
+  // Handle webcam gestures
+  const handleGesture = useCallback((gesture: GestureType) => {
+    switch (gesture) {
+      case 'SWIPE_LEFT':
+        if (layout.panels.diagnostics.visible) togglePanelVisibility('diagnostics');
+        break;
+      case 'SWIPE_RIGHT':
+        if (!layout.panels.diagnostics.visible) togglePanelVisibility('diagnostics');
+        break;
+      // You can add more gesture mapping here
+    }
+  }, [layout.panels.diagnostics.visible, togglePanelVisibility]);
+
+  // Handle panel physical dragging via webcam
+  const handlePanelDrag = useCallback((x: number, y: number) => {
+    // If not dragging any panel yet, check if we are hovering over a panel's title bar
+    if (!dragState.current.panelId) {
+      for (const [id, panel] of Object.entries(layout.panels)) {
+        if (!panel.visible) continue;
+        // Relaxed rule: Check if hand is anywhere inside the panel
+        if (x >= panel.x && x <= panel.x + panel.width && y >= panel.y && y <= panel.y + panel.height) {
+          dragState.current.panelId = id;
+          dragState.current.offsetX = panel.x - x;
+          dragState.current.offsetY = panel.y - y;
+          dragState.current.initialWidth = panel.width;
+          dragState.current.initialHeight = panel.height;
+          bringToFront(id);
+          break;
+        }
       }
-      return next;
-    });
+    }
+
+    // If we have locked onto a panel, move it
+    if (dragState.current.panelId) {
+      const TRASH_ZONE_SIZE = 150;
+      if (x > window.innerWidth - TRASH_ZONE_SIZE && y > window.innerHeight - TRASH_ZONE_SIZE) {
+        // Instantly close the panel!
+        togglePanelVisibility(dragState.current.panelId);
+        dragState.current.panelId = null;
+        dragState.current.initialWidth = 0;
+        dragState.current.initialHeight = 0;
+      } else {
+        const newX = x + dragState.current.offsetX;
+        const newY = y + dragState.current.offsetY;
+        updatePanelPosition(dragState.current.panelId, newX, newY);
+      }
+    }
+  }, [layout.panels, bringToFront, updatePanelPosition]);
+
+  const handleDragEnd = useCallback(() => {
+    dragState.current.panelId = null;
+    dragState.current.initialWidth = 0;
+    dragState.current.initialHeight = 0;
+  }, []);
+
+  const handlePanelScale = useCallback((scaleFactor: number) => {
+    if (dragState.current.panelId) {
+      const panel = layout.panels[dragState.current.panelId];
+      if (panel) {
+        // Clamp scale to prevent it from getting too small or too huge
+        let newWidth = dragState.current.initialWidth * scaleFactor;
+        let newHeight = dragState.current.initialHeight * scaleFactor;
+        newWidth = Math.max(200, Math.min(newWidth, window.innerWidth - 40));
+        newHeight = Math.max(100, Math.min(newHeight, window.innerHeight - 40));
+        updatePanelSize(dragState.current.panelId, newWidth, newHeight);
+      }
+    }
+  }, [layout.panels, updatePanelSize]);
+
+  const handleClearCanvas = () => {
+    setClearCount(c => c + 1);
+    setAnnotations([]);
+  };
+
+  const handleAskAI = async () => {
+    if (!canvasData) return;
+    setIsAiProcessing(true);
+    try {
+      const response = await fetch('/api/ai/vision', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageBase64: canvasData,
+          uiState: JSON.stringify(layout.panels),
+          intent: 'Please analyze my drawing on this HUD'
+        })
+      });
+      
+      if (!response.ok) throw new Error('Vision API failed');
+      const text = await response.text();
+      try {
+        const parsed = JSON.parse(text);
+        setAnnotations(parsed);
+      } catch (e) {
+        setAnnotations([{ x: window.innerWidth / 2 - 100, y: 100, text: 'AI responded, but format was invalid.', color: '#ef4444' }]);
+      }
+    } catch (e) {
+      console.error(e);
+      setAnnotations([{ x: window.innerWidth / 2 - 100, y: 100, text: 'Vision Error', color: '#ef4444' }]);
+    } finally {
+      setIsAiProcessing(false);
+    }
   };
 
   const isCombat = theme === 'combat';
+  const panels = layout.panels;
+
+  const visiblePanelKeys = new Set(Object.entries(panels).filter(([_, p]) => p.visible).map(([k]) => k));
 
   return (
     <div
@@ -97,60 +202,80 @@ export const JarvisHUDView: React.FC = () => {
           style={{ background: 'radial-gradient(ellipse at center, transparent 40%, rgba(180,0,0,0.15) 100%)' }} />
       )}
 
-      {/* Main HUD Grid — 3 columns, full height */}
-      <div className="absolute inset-0 p-4 grid gap-3"
-        style={{ gridTemplateColumns: '280px 1fr 300px', gridTemplateRows: '1fr' }}>
-
-        {/* LEFT COLUMN: Diagnostics */}
+      {/* Main HUD Free Layout */}
+      <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden">
         <AnimatePresence>
-          {visiblePanels.has('diagnostics') && (
-            <HudPanel key="diag">
+          {panels.diagnostics.visible && (
+            <DraggablePanel
+              key="diagnostics"
+              title="Diagnostics"
+              {...panels.diagnostics}
+              onPositionChange={updatePanelPosition}
+              onFocus={bringToFront}
+            >
               <DiagnosticsHUD />
-            </HudPanel>
+            </DraggablePanel>
           )}
-          {!visiblePanels.has('diagnostics') && (
-            <div key="diag-placeholder" />
-          )}
-        </AnimatePresence>
 
-        {/* CENTER COLUMN: Terminal */}
-        <AnimatePresence>
-          {visiblePanels.has('terminal') && (
-            <HudPanel key="terminal">
-              <div className="h-full flex flex-col">
+          {panels.terminal.visible && (
+            <DraggablePanel
+              key="terminal"
+              title="Terminal"
+              {...panels.terminal}
+              onPositionChange={updatePanelPosition}
+              onFocus={bringToFront}
+            >
+              <div className="h-full flex flex-col p-1">
                 <ConversationalTerminal />
               </div>
-            </HudPanel>
+            </DraggablePanel>
           )}
-          {!visiblePanels.has('terminal') && (
-            <div key="term-placeholder" className="flex items-center justify-center">
-              <div className="text-cyan-900 font-mono text-xs tracking-widest text-center">
-                <div className="text-4xl mb-2 opacity-30">◈</div>
-                <div>TERMINAL OFFLINE</div>
-                <div className="text-[9px] mt-1 opacity-50">Click COMMS to restore</div>
-              </div>
-            </div>
-          )}
-        </AnimatePresence>
 
-        {/* RIGHT COLUMN: Matrix Log */}
-        <AnimatePresence>
-          {visiblePanels.has('logs') && (
-            <HudPanel key="logs">
+          {panels.logs.visible && (
+            <DraggablePanel
+              key="logs"
+              title="Matrix Log"
+              {...panels.logs}
+              onPositionChange={updatePanelPosition}
+              onFocus={bringToFront}
+            >
               <MatrixLogStream />
-            </HudPanel>
-          )}
-          {!visiblePanels.has('logs') && (
-            <div key="logs-placeholder" />
+            </DraggablePanel>
           )}
         </AnimatePresence>
       </div>
 
       {/* ARC Reactor Menu — centered at bottom */}
-      <ArcReactorMenu
-        visiblePanels={visiblePanels}
-        onTogglePanel={togglePanel}
-        onThemeToggle={toggleTheme}
+      <div className="pointer-events-auto z-50">
+        <ArcReactorMenu
+          visiblePanels={visiblePanelKeys}
+          onTogglePanel={togglePanelVisibility}
+          onThemeToggle={toggleTheme}
+        />
+      </div>
+
+      {/* Drawing Canvas Overlay */}
+      <GestureCanvas
+        isDrawingMode={isDrawingMode}
+        annotations={annotations}
+        onCanvasData={setCanvasData}
+        clearCount={clearCount}
+        onGesture={handleGesture}
+        onPanelDrag={handlePanelDrag}
+        onPanelScale={handlePanelScale}
+        onDragEnd={handleDragEnd}
+        enabled={getBoolean('ui.gestures.enabled', true)}
+        smartShapes={getBoolean('ui.gestures.smart_shapes', true)}
+      />
+
+      {/* HUD Control Bar */}
+      <HudControlBar
+        isDrawingMode={isDrawingMode}
+        onToggleDrawingMode={() => setIsDrawingMode(!isDrawingMode)}
+        onResetLayout={resetLayout}
+        onAskAI={handleAskAI}
+        onClear={handleClearCanvas}
+        isAiProcessing={isAiProcessing}
       />
     </div>
   );

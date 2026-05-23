@@ -13,7 +13,6 @@ import { useConversations } from './hooks/useConversations'
 import { useUiSettings } from './hooks/useUiSettings'
 import { ThemeProvider } from './components/shared/ThemeProvider'
 import { BackgroundGrid } from './components/shared/BackgroundGrid'
-import { BootSequence } from './components/shared/BootSequence'
 
 // New Jarvis Imports
 import { ThemeProvider as JarvisThemeProvider } from './contexts/ThemeContext'
@@ -27,7 +26,6 @@ const pageVariants = {
 }
 
 function MainApp() {
-  const [booted, setBooted] = useState(false)
   const [activeView, setActiveView] = useState<View>('chat')
   const { activeConversationId, createConversation } = useConversations()
   const { getBoolean } = useUiSettings()
@@ -41,7 +39,6 @@ function MainApp() {
 
   return (
     <>
-      {!booted && <BootSequence onComplete={() => setBooted(true)} />}
       <div className="flex flex-col h-screen overflow-hidden" style={{ background: '#020b18' }}>
         <ThemeProvider />
         <BackgroundGrid />

@@ -28,7 +28,21 @@ public class ResponseParser {
         try {
             JsonNode root = objectMapper.readTree(json);
             String type = root.path("type").asText("").toUpperCase();
-            String responseText = root.path("response").asText("");
+            
+            JsonNode responseNode = root.path("response");
+            String responseText = "";
+            
+            if (responseNode.isTextual()) {
+                responseText = responseNode.asText("");
+            } else if (responseNode.isObject()) {
+                StringBuilder sb = new StringBuilder();
+                responseNode.fields().forEachRemaining(entry -> {
+                    sb.append(entry.getValue().asText("")).append("\n\n");
+                });
+                responseText = sb.toString().trim();
+            } else if (!responseNode.isMissingNode() && !responseNode.isNull()) {
+                responseText = responseNode.toString();
+            }
 
             if ("FINAL_ANSWER".equals(type) || "FINAL ANSWER".equals(type)) {
                 return LLMResponse.finalAnswer(responseText.isEmpty() ? json : responseText);

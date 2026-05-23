@@ -70,6 +70,11 @@ public class ChatController {
         if (!history.isEmpty()) {
             history = history.subList(0, history.size() - 1);
         }
+        
+        // Truncate history to the last 20 messages to prevent context bloat and slow responses
+        if (history.size() > 20) {
+            history = history.subList(history.size() - 20, history.size());
+        }
 
         agentOrchestrator.run(conversationId, history, userMessage);
         return Map.of("status", "processing", "conversationId", conversationId);
