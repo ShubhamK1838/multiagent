@@ -31,6 +31,10 @@ public class PostgresQueryToolHandler implements ToolHandler {
             return ToolExecutionResult.error("Query parameter is missing or empty.");
         }
 
+        if (!query.trim().toUpperCase().startsWith("SELECT") && !query.trim().toUpperCase().startsWith("EXPLAIN")) {
+            return ToolExecutionResult.error("Only SELECT and EXPLAIN queries are allowed.");
+        }
+
         try {
             List<Map<String, Object>> results = jdbcTemplate.queryForList(query);
             String jsonResult = objectMapper.writeValueAsString(results);

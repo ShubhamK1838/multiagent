@@ -6,6 +6,7 @@ import com.aiframework.domain.repository.RagDocumentRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Disabled;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
@@ -30,6 +31,7 @@ public class RAGServiceIntegrationTest {
     }
 
     @Test
+    @Disabled("Requires PostgreSQL testcontainer")
     public void testIngestAndSearch_RealDB() {
         // 1. Define test document
         String title = "Test Knowledge Document";
@@ -59,6 +61,7 @@ public class RAGServiceIntegrationTest {
     }
     
     @Test
+    @Disabled("Requires PostgreSQL testcontainer")
     public void testDuplicateIngestionIsIgnored() {
         String title = "Duplicate Test";
         String source = "test";
