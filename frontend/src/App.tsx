@@ -19,6 +19,7 @@ import { BootSequence } from './components/shared/BootSequence'
 import { ThemeProvider as JarvisThemeProvider } from './contexts/ThemeContext'
 import { SecurityProvider } from './contexts/SecurityContext'
 import { JarvisHUDView } from './components/layout/JarvisHUDView'
+import { HallOfArmor } from './components/hall-of-armor/HallOfArmor'
 
 const pageVariants = {
   initial: { opacity: 0, y: 8 },
@@ -85,6 +86,7 @@ function MainApp() {
                 {activeView === 'settings' && <SettingsPanel />}
                 {activeView === 'rag'      && <RAGPanel />}
                 {activeView === 'hud'      && <JarvisHUDView />}
+                {activeView === 'armor'    && <HallOfArmor />}
               </motion.div>
             </AnimatePresence>
           </main>
