@@ -14,12 +14,11 @@ export interface HudLayoutState {
   panels: Record<string, PanelLayout>;
 }
 
-const STORAGE_KEY = 'jarvis_hud_layout_v2';
+const STORAGE_KEY = 'jarvis_hud_layout_v3';
 
 const DEFAULT_LAYOUT: HudLayoutState = {
   panels: {
     diagnostics: { id: 'diagnostics', x: 20, y: 20, width: 280, height: window.innerHeight - 120, visible: true, zIndex: 10 },
-    terminal: { id: 'terminal', x: 320, y: 20, width: window.innerWidth - 660, height: window.innerHeight - 120, visible: true, zIndex: 10 },
     logs: { id: 'logs', x: window.innerWidth - 320, y: 20, width: 300, height: window.innerHeight - 120, visible: true, zIndex: 10 },
   }
 };
@@ -89,7 +88,6 @@ export function useHudLayout() {
     setLayout({
       panels: {
         diagnostics: { id: 'diagnostics', x: 20, y: 20, width: 280, height: window.innerHeight - 120, visible: true, zIndex: 10 },
-        terminal: { id: 'terminal', x: 320, y: 20, width: window.innerWidth - 660, height: window.innerHeight - 120, visible: true, zIndex: 10 },
         logs: { id: 'logs', x: window.innerWidth - 320, y: 20, width: 300, height: window.innerHeight - 120, visible: true, zIndex: 10 },
       }
     });

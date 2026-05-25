@@ -72,6 +72,18 @@ services:
     depends_on:
       - backend
 
+  # JARVIS Voice - Piper TTS (self-hosted, free, MIT license)
+  piper-tts:
+    image: lmicheli/piper-tts-api:latest
+    ports:
+      - "5000:5000"
+    volumes:
+      - piper_data:/app/voices
+    environment:
+      - DEFAULT_VOICE=en_GB-alan-medium
+    restart: unless-stopped
+
 volumes:
   pg_data:
   ollama_data:
+  piper_data:

@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
+import { useVoiceRecognition } from '../../hooks/useVoiceRecognition';
 
 interface VoiceCommanderProps {
   onCommand: (text: string) => void;
@@ -7,88 +8,9 @@ interface VoiceCommanderProps {
 }
 
 export const VoiceCommander: React.FC<VoiceCommanderProps> = ({ onCommand, isProcessing }) => {
-  const [isListening, setIsListening] = useState(false);
-  const [transcript, setTranscript] = useState('');
-  const recognitionRef = useRef<any>(null);
+  const { isListening, transcript, toggleListening, supported } = useVoiceRecognition({ onCommand });
 
-  useEffect(() => {
-    // Check for browser support
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      console.warn('SpeechRecognition API not supported in this browser.');
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = 'en-US';
-
-    recognition.onresult = (event: any) => {
-      let currentTranscript = '';
-      let isFinal = false;
-
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i];
-        currentTranscript += result[0].transcript;
-        if (result.isFinal) {
-          isFinal = true;
-        }
-      }
-
-      setTranscript(currentTranscript);
-
-      if (isFinal) {
-        const finalCommand = currentTranscript.trim();
-        if (finalCommand) {
-          onCommand(finalCommand);
-        }
-        setTranscript('');
-      }
-    };
-
-    recognition.onerror = (event: any) => {
-      console.error('Speech recognition error', event.error);
-      setIsListening(false);
-    };
-
-    recognition.onend = () => {
-      if (isListening) {
-        // Automatically restart if we are supposed to be listening
-        try {
-          recognition.start();
-        } catch (e) {
-           setIsListening(false);
-        }
-      }
-    };
-
-    recognitionRef.current = recognition;
-
-    return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
-    };
-  }, [onCommand, isListening]);
-
-  const toggleListening = () => {
-    if (isListening) {
-      setIsListening(false);
-      recognitionRef.current?.stop();
-      setTranscript('');
-    } else {
-      setIsListening(true);
-      setTranscript('');
-      try {
-        recognitionRef.current?.start();
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  };
-
-  if (!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)) {
+  if (!supported) {
     return null; // Don't render if not supported
   }
 

@@ -42,14 +42,6 @@ export const ArcReactorMenu: React.FC<ArcReactorMenuProps> = ({
       action: () => { onTogglePanel('diagnostics'); setIsOpen(false); },
     },
     {
-      id: 'terminal',
-      label: 'COMMS',
-      icon: '◈',
-      color: '#00ff88',
-      glow: 'rgba(0,255,136,0.6)',
-      action: () => { onTogglePanel('terminal'); setIsOpen(false); },
-    },
-    {
       id: 'logs',
       label: 'MATRIX',
       icon: '≡',

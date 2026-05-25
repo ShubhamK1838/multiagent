@@ -12,9 +12,6 @@ import java.util.List;
  *   1. FINAL_ANSWER  — plain prose, no JSON, no code fences
  *   2. TOOL_CALL     — single JSON object with reasoning + tool_call
  *   3. ASK_USER      — JSON tool call using the "ask_user" tool to request a form
- *
- * The wording is deliberately strict: the parser and streaming filter rely on
- * the model NOT mixing prose and JSON in the same response.
  */
 @Component
 public class SystemPromptBuilder {
@@ -43,17 +40,16 @@ public class SystemPromptBuilder {
     private static final String RESPONSE_RULES =
             "## Response Format — CRITICAL\n" +
             "\n" +
-            "Every response MUST be a single JSON object. Never reply with plain text.\n" +
             "You must use exactly one of these three forms:\n" +
             "\n" +
-            "**TOOL_CALL** — when you need to call a tool to complete the task:\n" +
+            "**TOOL_CALL** — when you need to call a tool to complete the task. MUST be a single JSON object:\n" +
             "{\"type\":\"TOOL_CALL\",\"response\":\"<your reasoning>\",\"tool_call\":{\"name\":\"<tool>\",\"arguments\":{<args>}}}\n" +
             "\n" +
-            "**INPUT_FORM** — when you need information from the user (use tool name 'ask_user'):\n" +
+            "**INPUT_FORM** — when you need information from the user (use tool name 'ask_user'). MUST be a single JSON object:\n" +
             "{\"type\":\"INPUT_FORM\",\"response\":\"<your reasoning>\",\"tool_call\":{\"name\":\"ask_user\",\"arguments\":{<schema>}}}\n" +
             "\n" +
-            "**FINAL_ANSWER** — only when the task is fully complete and no more tools are needed:\n" +
-            "{\"type\":\"FINAL_ANSWER\",\"response\":\"<complete answer to show the user>\"}\n" +
+            "**FINAL_ANSWER** — only when the task is fully complete and no more tools are needed. MUST be plain markdown text, NOT JSON.\n" +
+            "Just write your complete answer to the user directly without wrapping it in a JSON object.\n" +
             "\n" +
             "### Multi-step tool chaining — CRITICAL\n" +
             "- You MUST keep calling tools until you have ALL the information needed.\n" +
@@ -62,10 +58,8 @@ public class SystemPromptBuilder {
             "- A partial or uncertain answer must NOT be a FINAL_ANSWER — call a tool instead.\n" +
             "\n" +
             "### Format rules — strict\n" +
-            "- Always output exactly one JSON object starting with `{` and ending with `}`.\n" +
-            "- Always include the 'type' and 'response' fields.\n" +
-            "- Never wrap the JSON in markdown code fences.\n" +
-            "- Never narrate before or after the JSON.\n";
+            "- For tool calls, always output exactly one JSON object starting with `{` and ending with `}`. Never use markdown code fences.\n" +
+            "- For final answers, do NOT output JSON. Output your response directly in plain text/markdown.\n";
 
     public SystemMessage build(String basePrompt, List<String> toolDescriptions, String ragContext) {
         StringBuilder prompt = new StringBuilder(basePrompt);

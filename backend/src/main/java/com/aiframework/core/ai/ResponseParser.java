@@ -14,21 +14,28 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ResponseParser {
 
-    private static final String MALFORMED_TOOL_CALL_FALLBACK =
-            "Sorry — I tried to call a tool but produced an invalid request. " +
-            "Please rephrase or try again.";
-
     private final ObjectMapper objectMapper;
 
     public LLMResponse parse(String rawResponse) {
         String trimmed = rawResponse == null ? "" : rawResponse.strip();
+        
+        // Try extracting what looks like a JSON block
         String json = extractJsonBody(trimmed);
-        if (json == null) json = trimmed;
+        
+        if (json == null) {
+            // No { } found, so it must be a plain text final answer.
+            return LLMResponse.finalAnswer(trimmed);
+        }
 
         try {
             JsonNode root = objectMapper.readTree(json);
-            String type = root.path("type").asText("").toUpperCase();
             
+            // If it parsed as JSON but isn't an object (e.g. string, array), it's probably not a tool call.
+            if (!root.isObject()) {
+                 return LLMResponse.finalAnswer(trimmed);
+            }
+
+            String type = root.path("type").asText("").toUpperCase();
             JsonNode responseNode = root.path("response");
             String responseText = "";
             
@@ -45,19 +52,29 @@ public class ResponseParser {
             }
 
             if ("FINAL_ANSWER".equals(type) || "FINAL ANSWER".equals(type)) {
-                return LLMResponse.finalAnswer(responseText.isEmpty() ? json : responseText);
+                return LLMResponse.finalAnswer(responseText.isEmpty() ? trimmed : responseText);
             }
 
             if (root.has("tool_call")) {
                 return buildToolCallResponse(root, responseText);
             }
 
-            // Fallback if no tool_call but not FINAL_ANSWER
-            return LLMResponse.finalAnswer(responseText.isEmpty() ? json : responseText);
+            // Fallback if it is a JSON object but lacks tool_call and isn't FINAL_ANSWER
+            // It might just be the model returning a JSON example as the final answer.
+            if (root.has("type") && "TOOL_CALL".equals(type)) {
+                // It explicitly claims to be a tool call but missing tool_call field
+                log.warn("Malformed tool call JSON (missing tool_call field): {}", abbreviate(trimmed));
+                return LLMResponse.finalAnswer("Sorry — I tried to call a tool but produced an invalid request. Please rephrase or try again.");
+            }
+
+            return LLMResponse.finalAnswer(trimmed);
 
         } catch (JsonProcessingException e) {
-            log.debug("Tool-call JSON failed to parse: {}", e.getOriginalMessage());
-            return safeFallback(trimmed);
+            // It looked like JSON (had { and }), but failed to parse.
+            // This happens often when the model writes code containing { and } in plain text final answers.
+            // Treat the whole original message as the final answer instead of failing.
+            log.debug("Found { } but not valid JSON. Treating as plain text final answer. Details: {}", e.getOriginalMessage());
+            return LLMResponse.finalAnswer(trimmed);
         }
     }
 
@@ -86,11 +103,6 @@ public class ResponseParser {
         int lastFence = s.lastIndexOf("```");
         if (firstNewline < 0 || lastFence <= firstNewline) return s;
         return s.substring(firstNewline + 1, lastFence);
-    }
-
-    private LLMResponse safeFallback(String original) {
-        log.warn("Discarding malformed tool-call JSON from model: {}", abbreviate(original));
-        return LLMResponse.finalAnswer(MALFORMED_TOOL_CALL_FALLBACK);
     }
 
     private String abbreviate(String s) {

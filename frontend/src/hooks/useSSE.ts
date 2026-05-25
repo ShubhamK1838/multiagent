@@ -3,9 +3,14 @@ import { useChatStore } from '../store/chatStore'
 import { formApi } from '../services/api'
 import type { AgentEvent } from '../types'
 
-export function useSSE(conversationId: string | null) {
+export function useSSE(conversationId: string | null, onEvent?: (event: AgentEvent) => void) {
   const esRef = useRef<EventSource | null>(null)
   const store = useChatStore()
+  
+  const onEventRef = useRef(onEvent)
+  useEffect(() => {
+    onEventRef.current = onEvent
+  }, [onEvent])
 
   useEffect(() => {
     if (!conversationId) return
@@ -17,6 +22,10 @@ export function useSSE(conversationId: string | null) {
     const handleEvent = (type: string) => (e: MessageEvent) => {
       const event: AgentEvent = JSON.parse(e.data)
       store.addEvent(event)
+      
+      if (onEventRef.current) {
+        onEventRef.current(event)
+      }
 
       switch (type) {
         case 'TOKEN':
@@ -85,5 +94,5 @@ export function useSSE(conversationId: string | null) {
       es.close()
       esRef.current = null
     }
-  }, [conversationId])
+  }, [conversationId]) // Removed onEvent from dependency array to prevent connection loops
 }
