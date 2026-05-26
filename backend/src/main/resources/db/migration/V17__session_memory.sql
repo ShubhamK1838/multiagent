@@ -19,4 +19,4 @@ INSERT INTO system_settings (setting_key, setting_value, setting_type, category,
 ('memory.summary_prompt',
  'Summarise this conversation in 3-5 sentences. Extract: (1) file paths the user worked with, (2) tasks completed, (3) any stated preferences. Respond ONLY as JSON: {"summary":"...","key_paths":["..."],"key_facts":{}}',
  'TEXT', 'AGENT', 'Prompt sent to LLM to generate a memory summary')
-ON CONFLICT (setting_key) DO NOTHING;
+ON CONFLICT DO NOTHING;

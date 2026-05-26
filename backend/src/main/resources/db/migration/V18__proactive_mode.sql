@@ -4,4 +4,4 @@ INSERT INTO system_settings (setting_key, setting_value, setting_type, category,
 ('proactive.cpu_threshold',    '85',    'INTEGER', 'AGENT', 'CPU % threshold for alert'),
 ('proactive.memory_threshold', '85',    'INTEGER', 'AGENT', 'JVM memory % threshold for alert'),
 ('proactive.cooldown_seconds', '60',    'INTEGER', 'AGENT', 'Minimum seconds between same-type alerts')
-ON CONFLICT (setting_key) DO NOTHING;
+ON CONFLICT DO NOTHING;
