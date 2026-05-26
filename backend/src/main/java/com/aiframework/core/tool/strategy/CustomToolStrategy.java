@@ -23,7 +23,7 @@ public class CustomToolStrategy implements ToolExecutionStrategy {
 
     @Override
     public String toolType() {
-        return "custom";
+        return "CUSTOM";
     }
 
     @Override

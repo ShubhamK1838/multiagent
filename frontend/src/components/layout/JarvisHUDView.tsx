@@ -16,6 +16,8 @@ import { useConversations } from '../../hooks/useConversations';
 import { useSSE } from '../../hooks/useSSE';
 import { useTTS } from '../../hooks/useTTS';
 import { HudMessageFeed } from '../hud/HudMessageFeed';
+import { DiagramPanel } from '../hud/DiagramPanel';
+import type { DiagramData } from '../hud/DiagramPanel';
 import type { AgentEvent } from '../../types';
 
 // Hex grid SVG background
@@ -73,6 +75,7 @@ export const JarvisHUDView: React.FC = () => {
   const [canvasData, setCanvasData] = useState<string>('');
   const [clearCount, setClearCount] = useState(0);
   const [injectedShape, setInjectedShape] = useState<any>(null);
+  const [diagram, setDiagram] = useState<DiagramData | null>(null);
 
   const conversationId = useChatStore(state => state.activeConversationId);
   const { createConversation } = useConversations();
@@ -93,6 +96,8 @@ export const JarvisHUDView: React.FC = () => {
     if (eventName === 'draw_ui_shape') {
       setInjectedShape(payload);
       setTimeout(() => setInjectedShape(null), 100);
+    } else if (eventName === 'render_diagram') {
+      setDiagram(payload as DiagramData);
     }
   }, []);
 
@@ -303,6 +308,17 @@ export const JarvisHUDView: React.FC = () => {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Diagram Panel — rendered on screen when AI calls render_diagram */}
+      <AnimatePresence>
+        {diagram && (
+          <DiagramPanel
+            key="diagram"
+            data={diagram}
+            onClose={() => setDiagram(null)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* ARC Reactor Menu — centered at bottom */}
       <div className="pointer-events-auto z-50">
