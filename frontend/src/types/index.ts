@@ -143,7 +143,7 @@ export interface ConversationSummary {
 export interface TableData {
   title: string
   columns: string[]
-  rows: (string | number | boolean | null)[][]
+  rows: unknown[][]
 }
 
 export interface ChartDataset {
