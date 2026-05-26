@@ -19,7 +19,6 @@ const STORAGE_KEY = 'jarvis_hud_layout_v3';
 const DEFAULT_LAYOUT: HudLayoutState = {
   panels: {
     diagnostics: { id: 'diagnostics', x: 20, y: 20, width: 280, height: window.innerHeight - 120, visible: true, zIndex: 10 },
-    logs: { id: 'logs', x: window.innerWidth - 320, y: 20, width: 300, height: window.innerHeight - 120, visible: true, zIndex: 10 },
     workflows: { id: 'workflows', x: window.innerWidth - 420, y: 110, width: 380, height: 500, visible: false, zIndex: 10 },
   }
 };
@@ -89,7 +88,6 @@ export function useHudLayout() {
     setLayout({
       panels: {
         diagnostics: { id: 'diagnostics', x: 20, y: 20, width: 280, height: window.innerHeight - 120, visible: true, zIndex: 10 },
-        logs: { id: 'logs', x: window.innerWidth - 320, y: 20, width: 300, height: window.innerHeight - 120, visible: true, zIndex: 10 },
         workflows: { id: 'workflows', x: window.innerWidth - 420, y: 110, width: 380, height: 500, visible: false, zIndex: 10 },
       }
     });

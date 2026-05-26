@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export type HudPanel = 'diagnostics' | 'terminal' | 'logs' | 'all';
+export type HudPanel = 'diagnostics' | 'terminal' | 'all';
 
 interface ArcReactorMenuProps {
   visiblePanels: Set<string>;
@@ -40,14 +40,6 @@ export const ArcReactorMenu: React.FC<ArcReactorMenuProps> = ({
       color: '#00d4ff',
       glow: 'rgba(0,212,255,0.6)',
       action: () => { onTogglePanel('diagnostics'); setIsOpen(false); },
-    },
-    {
-      id: 'logs',
-      label: 'MATRIX',
-      icon: '≡',
-      color: '#a855f7',
-      glow: 'rgba(168,85,247,0.6)',
-      action: () => { onTogglePanel('logs'); setIsOpen(false); },
     },
     {
       id: 'workflows',

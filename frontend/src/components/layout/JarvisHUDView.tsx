@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { DiagnosticsHUD } from '../DiagnosticsHUD';
-import { MatrixLogStream } from '../MatrixLogStream';
 import { ArcReactorMenu } from './ArcReactorMenu';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useHudLayout } from '../../hooks/useHudLayout';
@@ -150,9 +149,7 @@ export const JarvisHUDView: React.FC = () => {
         if (!layout.panels.diagnostics?.visible) togglePanelVisibility('diagnostics');
         break;
       case 'OPEN_PALM':
-        // Open both panels
         if (!layout.panels.diagnostics?.visible) togglePanelVisibility('diagnostics');
-        if (!layout.panels.logs?.visible) togglePanelVisibility('logs');
         break;
       case 'TWO_HANDS_EXPAND':
         resetLayout();
@@ -315,17 +312,6 @@ export const JarvisHUDView: React.FC = () => {
             </DraggablePanel>
           )}
 
-          {panels.logs?.visible && (
-            <DraggablePanel
-              key="logs"
-              title="Matrix Log"
-              {...panels.logs}
-              onPositionChange={updatePanelPosition}
-              onFocus={bringToFront}
-            >
-              <MatrixLogStream />
-            </DraggablePanel>
-          )}
         </AnimatePresence>
       </div>
 
