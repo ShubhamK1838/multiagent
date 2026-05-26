@@ -138,6 +138,57 @@ export interface ConversationSummary {
   createdAt: string
 }
 
+// ── Visualization panel data types ───────────────────────────────────────────
+
+export interface TableData {
+  title: string
+  columns: string[]
+  rows: (string | number | boolean | null)[][]
+}
+
+export interface ChartDataset {
+  label: string
+  data: number[]
+  color?: string
+}
+
+export interface ChartData {
+  type: 'bar' | 'line' | 'pie' | 'area'
+  title: string
+  labels: string[]
+  datasets: ChartDataset[]
+}
+
+export interface CodeData {
+  title: string
+  language: string
+  code: string
+}
+
+export interface JsonData {
+  title: string
+  data: unknown
+}
+
+export interface DiffData {
+  title: string
+  before: string
+  after: string
+  language?: string
+}
+
+export interface MetricItem {
+  label: string
+  value: string | number
+  unit?: string
+  trend?: 'up' | 'down' | 'flat'
+}
+
+export interface MetricsData {
+  title: string
+  metrics: MetricItem[]
+}
+
 export interface ToolExecution {
   id: string
   toolName: string

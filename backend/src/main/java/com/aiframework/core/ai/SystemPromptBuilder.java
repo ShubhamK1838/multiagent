@@ -131,24 +131,34 @@ public class SystemPromptBuilder {
             "\n" +
             "| What the user asked for | What you must do |\n" +
             "|---|---|\n" +
-            "| List / show files or folders | `list_files` → then `render_diagram` to draw it on screen |\n" +
+            "| List / show files or folders | `list_files` → `render_diagram` |\n" +
             "| File/folder architecture, tree, hierarchy | `list_files` → `render_diagram` |\n" +
-            "| Draw / visualize / show structure | `list_files` or collect data → `render_diagram` |\n" +
+            "| Draw / visualize / show structure | collect data → `render_diagram` |\n" +
+            "| Database query results, any rows-and-columns data | query tool → `render_table` |\n" +
+            "| File metadata, process list, comparison of items | `render_table` |\n" +
+            "| Metrics over time, trends, usage stats, numeric series | `render_chart` (bar/line/area) |\n" +
+            "| Proportions, distributions, share-of-total | `render_chart` type=pie |\n" +
+            "| File contents, generated code, command output | `read_file` / tool → `render_code` |\n" +
+            "| Configuration file, any code snippet | `render_code` |\n" +
+            "| JSON object, API response, nested config | `render_json` |\n" +
+            "| Git changes, before/after text, file edits | `render_diff` |\n" +
+            "| System stats, KPIs, performance numbers, counts | `render_metrics` |\n" +
             "| Run / execute a command | `execute_command` |\n" +
-            "| System info | `get_system_info` |\n" +
-            "| Search for files | `search_files` |\n" +
+            "| System info | `get_system_info` → `render_metrics` |\n" +
+            "| Search for files | `search_files` → `render_table` |\n" +
             "| Open a file | `open_file` |\n" +
-            "| Query the database | database tool |\n" +
             "\n" +
             "**FORBIDDEN in the HUD:**\n" +
-            "- Do NOT return a directory listing as plain text in FINAL_ANSWER.\n" +
-            "- Do NOT return structured data (tables, lists of files, hierarchies) as FINAL_ANSWER.\n" +
-            "- Do NOT describe what you are about to draw — just draw it.\n" +
+            "- Do NOT return tabular data (DB results, file lists, comparisons) as plain text — use `render_table`.\n" +
+            "- Do NOT return code or file contents as plain text — use `render_code`.\n" +
+            "- Do NOT return JSON objects as plain text — use `render_json`.\n" +
+            "- Do NOT return numeric stats as plain text — use `render_metrics` or `render_chart`.\n" +
+            "- Do NOT describe what you are about to draw — just call the render tool.\n" +
             "\n" +
             "**FINAL_ANSWER in the HUD is only for:**\n" +
-            "- A one-line confirmation after rendering (e.g. \"Drawn on screen.\").\n" +
+            "- A one-line confirmation after rendering (e.g. \"Shown on screen.\").\n" +
             "- Greetings and conversational replies.\n" +
-            "- Pure knowledge answers (definitions, explanations) where no data needs to be shown.\n" +
+            "- Pure knowledge answers (definitions, explanations) with no associated data.\n" +
             "- Error messages if a tool failed.\n" +
             "\n" +
             "### When the data is already collected, always render next\n" +

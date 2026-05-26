@@ -20,6 +20,8 @@ import { DiagramPanel } from '../hud/DiagramPanel';
 import type { DiagramData } from '../hud/DiagramPanel';
 import { ProactiveAlertToast } from '../hud/ProactiveAlertToast';
 import { WorkflowPanel } from '../hud/WorkflowPanel';
+import { VizPanelHost } from '../hud/viz';
+import { useVizPanels } from '../../hooks/useVizPanels';
 import { proactiveModeApi } from '../../services/api';
 import type { AgentEvent } from '../../types';
 
@@ -80,6 +82,7 @@ export const JarvisHUDView: React.FC = () => {
   const [injectedShape, setInjectedShape] = useState<any>(null);
   const [diagram, setDiagram] = useState<DiagramData | null>(null);
   const [proactiveEnabled, setProactiveEnabled] = useState(false);
+  const { panels: vizPanels, dispatch: vizDispatch, dismiss: vizDismiss } = useVizPanels();
 
   const conversationId = useChatStore(state => state.activeConversationId);
   const proactiveAlerts = useChatStore(state => state.proactiveAlerts);
@@ -98,14 +101,16 @@ export const JarvisHUDView: React.FC = () => {
 
   const lastSpokenCountRef = useRef(0);
 
-  const handleFrontendEvent = useCallback((eventName: string, payload: any) => {
+  const handleFrontendEvent = useCallback((eventName: string, payload: unknown) => {
     if (eventName === 'draw_ui_shape') {
       setInjectedShape(payload);
       setTimeout(() => setInjectedShape(null), 100);
     } else if (eventName === 'render_diagram') {
       setDiagram(payload as DiagramData);
+    } else {
+      vizDispatch(eventName, payload);
     }
-  }, []);
+  }, [vizDispatch]);
 
   useSSE(conversationId, (event: AgentEvent) => {
     if (event.type === 'TOOL_RESULT' && event.metadata?.frontend_event) {
@@ -334,6 +339,9 @@ export const JarvisHUDView: React.FC = () => {
           />
         )}
       </AnimatePresence>
+
+      {/* Visualization panels — table, chart, code, json, diff, metrics */}
+      <VizPanelHost panels={vizPanels} onDismiss={vizDismiss} />
 
       {/* Proactive Alert Toasts */}
       <ProactiveAlertToast alerts={proactiveAlerts} onDismiss={dismissProactiveAlert} />
