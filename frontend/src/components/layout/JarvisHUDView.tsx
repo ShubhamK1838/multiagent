@@ -10,8 +10,9 @@ import { DraggablePanel } from './DraggablePanel';
 import { GestureCanvas, AIAnnotation } from '../hud/GestureCanvas';
 import type { GestureType } from '../../hooks/useWebcamGestures';
 import { HudControlBar } from '../hud/HudControlBar';
-import { useHudConversation } from '../../hooks/useHudConversation';
 import { useChat } from '../../hooks/useChat';
+import { useChatStore } from '../../store/chatStore';
+import { useConversations } from '../../hooks/useConversations';
 import { useSSE } from '../../hooks/useSSE';
 import { useTTS } from '../../hooks/useTTS';
 import { HudMessageFeed } from '../hud/HudMessageFeed';
@@ -73,7 +74,17 @@ export const JarvisHUDView: React.FC = () => {
   const [clearCount, setClearCount] = useState(0);
   const [injectedShape, setInjectedShape] = useState<any>(null);
 
-  const { conversationId } = useHudConversation();
+  const conversationId = useChatStore(state => state.activeConversationId);
+  const { createConversation } = useConversations();
+
+  // If no conversation is active when the HUD opens, create one automatically
+  // so the HUD is always ready to use without requiring a chat-tab visit first.
+  useEffect(() => {
+    if (!conversationId) {
+      createConversation('J.A.R.V.I.S.');
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const { sendMessage, streamContent, convMessages, thinking, sending } = useChat(conversationId);
 
   const lastSpokenCountRef = useRef(0);
@@ -223,8 +234,8 @@ export const JarvisHUDView: React.FC = () => {
   };
 
   const handleTextCommand = useCallback((text: string) => {
-    if (text.trim()) sendMessage(text.trim());
-  }, [sendMessage]);
+    if (text.trim() && conversationId) sendMessage(text.trim());
+  }, [sendMessage, conversationId]);
 
   const handleVoiceCommand = useCallback((text: string) => {
     handleTextCommand(text);
