@@ -5,6 +5,7 @@ import com.aiframework.core.agent.CancellationService;
 import com.aiframework.core.event.EventBus;
 import com.aiframework.domain.entity.Conversation;
 import com.aiframework.service.ConversationService;
+import com.aiframework.service.proactive.ActiveConversationTracker;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,7 @@ public class ChatController {
     private final CancellationService cancellationService;
     private final EventBus eventBus;
     private final ObjectMapper objectMapper;
+    private final ActiveConversationTracker activeConversationTracker;
 
     @PostMapping("/conversations")
     public Conversation createConversation(@RequestBody(required = false) Map<String, String> body) {
@@ -65,6 +67,7 @@ public class ChatController {
         String imageBase64 = body.get("image");
         UUID convId = UUID.fromString(conversationId);
 
+        activeConversationTracker.setActive(conversationId);
         conversationService.saveMessage(convId, "user", userMessage);
         var history = conversationService.getHistory(convId);
         // Remove the last message we just added (it's passed separately)

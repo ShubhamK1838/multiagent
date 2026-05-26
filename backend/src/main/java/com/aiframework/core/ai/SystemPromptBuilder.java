@@ -129,12 +129,22 @@ public class SystemPromptBuilder {
     }
 
     public SystemMessage build(String basePrompt, List<String> toolDescriptions, String ragContext) {
+        return build(basePrompt, toolDescriptions, ragContext, "");
+    }
+
+    public SystemMessage build(String basePrompt, List<String> toolDescriptions, String ragContext, String memoryBlock) {
         StringBuilder prompt = new StringBuilder(basePrompt);
+        appendMemoryBlock(prompt, memoryBlock);
         appendRagContext(prompt, ragContext);
         appendToolCatalog(prompt, toolDescriptions);
         appendHistoryRules(prompt);
         appendResponseRules(prompt);
         return new SystemMessage(prompt.toString());
+    }
+
+    private void appendMemoryBlock(StringBuilder prompt, String memoryBlock) {
+        if (memoryBlock == null || memoryBlock.isBlank()) return;
+        prompt.append("\n\n").append(memoryBlock);
     }
 
     private void appendRagContext(StringBuilder prompt, String ragContext) {

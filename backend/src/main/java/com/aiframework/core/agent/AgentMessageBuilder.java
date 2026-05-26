@@ -5,6 +5,7 @@ import com.aiframework.core.rag.RAGService;
 import com.aiframework.core.tool.ToolRegistry;
 import com.aiframework.domain.entity.ToolDefinitionEntity;
 import com.aiframework.service.SettingsService;
+import com.aiframework.service.memory.SessionMemoryService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class AgentMessageBuilder {
     private final SettingsService settings;
     private final ContextManager contextManager;
     private final ObjectMapper objectMapper;
+    private final SessionMemoryService sessionMemoryService;
 
     public List<Message> buildInitialMessages(List<Message> history, String userMessage, String imageBase64) {
         List<Message> messages = new ArrayList<>();
@@ -60,7 +62,8 @@ public class AgentMessageBuilder {
         String basePrompt = settings.get("llm.system_prompt", DEFAULT_SYSTEM_PROMPT);
         List<String> toolDescriptions = describeEnabledTools();
         String ragContext = retrieveRagContext(userMessage);
-        return llmService.buildSystemMessage(basePrompt, toolDescriptions, ragContext);
+        String memoryBlock = sessionMemoryService.buildMemoryBlock();
+        return llmService.buildSystemMessage(basePrompt, toolDescriptions, ragContext, memoryBlock);
     }
 
     private List<String> describeEnabledTools() {

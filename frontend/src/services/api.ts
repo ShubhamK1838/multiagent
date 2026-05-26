@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Conversation, ToolDefinition, SystemSetting, FormRequest, AiModel, AiModelInput, ToolExecution } from '../types'
+import type { Conversation, ToolDefinition, SystemSetting, FormRequest, AiModel, AiModelInput, ToolExecution, ConversationSummary, WorkflowWithSteps, Workflow } from '../types'
 
 const api = axios.create({ baseURL: '/api/v1' })
 
@@ -81,4 +81,35 @@ export const aiModelApi = {
     api.put<AiModel>(`/ai-models/${id}`, input).then(r => r.data),
   delete: (id: string) => api.delete(`/ai-models/${id}`),
   setDefault: (id: string) => api.post<AiModel>(`/ai-models/${id}/default`).then(r => r.data),
+}
+
+export const proactiveModeApi = {
+  getStatus: () =>
+    api.get<{ enabled: boolean; watchPath: string }>('/proactive/status').then(r => r.data),
+  toggle: () =>
+    api.post<{ enabled: boolean }>('/proactive/toggle').then(r => r.data),
+  setWatchPath: (path: string) =>
+    api.put<{ watchPath: string }>('/proactive/watch-path', { path }).then(r => r.data),
+}
+
+export const workflowApi = {
+  list: () =>
+    api.get<WorkflowWithSteps[]>('/workflows').then(r => r.data),
+  get: (name: string) =>
+    api.get<WorkflowWithSteps>(`/workflows/${name}`).then(r => r.data),
+  create: (body: { name: string; description?: string; steps: { tool_name: string; tool_args: Record<string, unknown> }[] }) =>
+    api.post<Workflow>('/workflows', body).then(r => r.data),
+  delete: (name: string) =>
+    api.delete<{ deleted: string }>(`/workflows/${name}`).then(r => r.data),
+  run: (name: string, conversationId?: string) =>
+    api.post<{ result: string }>(`/workflows/${name}/run`, { conversationId }).then(r => r.data),
+}
+
+export const memoryApi = {
+  listSummaries: () =>
+    api.get<ConversationSummary[]>('/memory/summaries').then(r => r.data),
+  getSummary: (conversationId: string) =>
+    api.get<ConversationSummary>(`/memory/summaries/${conversationId}`).then(r => r.data),
+  clearAll: () =>
+    api.delete<{ deleted: number }>('/memory/summaries').then(r => r.data),
 }

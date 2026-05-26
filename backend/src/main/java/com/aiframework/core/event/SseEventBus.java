@@ -60,6 +60,11 @@ public class SseEventBus implements EventBus {
     }
 
     @Override
+    public void publishProactiveAlert(String conversationId, String message) {
+        publish(AgentEvent.of(EventType.PROACTIVE_ALERT, conversationId, message));
+    }
+
+    @Override
     public void publishFormRequest(String conversationId, String formId, Object schema) {
         try {
             String schemaJson = objectMapper.writeValueAsString(schema);

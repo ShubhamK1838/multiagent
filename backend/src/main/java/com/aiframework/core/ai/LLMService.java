@@ -21,6 +21,10 @@ public class LLMService {
     }
 
     public SystemMessage buildSystemMessage(String basePrompt, List<String> toolDescriptions, String ragContext) {
-        return systemPromptBuilder.build(basePrompt, toolDescriptions, ragContext);
+        return systemPromptBuilder.build(basePrompt, toolDescriptions, ragContext, "");
+    }
+
+    public SystemMessage buildSystemMessage(String basePrompt, List<String> toolDescriptions, String ragContext, String memoryBlock) {
+        return systemPromptBuilder.build(basePrompt, toolDescriptions, ragContext, memoryBlock);
     }
 }

@@ -22,8 +22,9 @@ const EVENT_CONFIG: Record<EventType, { label: string; color: string; dimColor: 
   AGENT_START:     { label: 'AGENT',   color: '#00d4ff',              dimColor: 'rgba(0,212,255,0.5)' },
   AGENT_END:       { label: 'DONE',    color: '#00d4ff',              dimColor: 'rgba(0,212,255,0.5)' },
   ERROR:           { label: 'ERROR',   color: '#ff4444',              dimColor: 'rgba(255,68,68,0.5)' },
-  ITERATION_START: { label: 'ITER',    color: '#ff8800',              dimColor: 'rgba(255,136,0,0.5)' },
-  ITERATION_END:   { label: 'ITER',    color: '#ff8800',              dimColor: 'rgba(255,136,0,0.5)' },
+  ITERATION_START:  { label: 'ITER',   color: '#ff8800',              dimColor: 'rgba(255,136,0,0.5)' },
+  ITERATION_END:    { label: 'ITER',   color: '#ff8800',              dimColor: 'rgba(255,136,0,0.5)' },
+  PROACTIVE_ALERT:  { label: 'ALERT',  color: '#fbbf24',              dimColor: 'rgba(251,191,36,0.5)' },
 }
 
 function EventItem({ event }: { event: AgentEvent }) {

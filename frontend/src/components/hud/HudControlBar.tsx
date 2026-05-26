@@ -15,6 +15,8 @@ interface HudControlBarProps {
   onSubmitTextCommand: (text: string) => void;
   ttsEnabled: boolean;
   onToggleTTS: () => void;
+  proactiveEnabled: boolean;
+  onToggleProactive: () => void;
 }
 
 export const HudControlBar: React.FC<HudControlBarProps> = ({
@@ -29,7 +31,9 @@ export const HudControlBar: React.FC<HudControlBarProps> = ({
   onToggleGestures,
   onSubmitTextCommand,
   ttsEnabled,
-  onToggleTTS
+  onToggleTTS,
+  proactiveEnabled,
+  onToggleProactive
 }) => {
   const [inputText, setInputText] = useState('');
 
@@ -76,6 +80,25 @@ export const HudControlBar: React.FC<HudControlBarProps> = ({
           className="text-[10px] uppercase font-mono tracking-widest text-cyan-500 hover:text-cyan-300 transition-colors px-2"
         >
           Reset Layout
+        </button>
+
+        <div className="w-px h-3 bg-cyan-500/30 mx-1" />
+
+        {/* Proactive Mode Toggle */}
+        <button
+          onClick={onToggleProactive}
+          title={proactiveEnabled ? 'Disable proactive monitoring' : 'Enable proactive monitoring'}
+          className={`flex items-center justify-center w-7 h-7 rounded-full border transition-colors ${
+            proactiveEnabled
+              ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-[0_0_8px_rgba(251,191,36,0.4)]'
+              : 'bg-transparent border-transparent text-gray-500 hover:text-gray-300'
+          }`}
+        >
+          <motion.span
+            className="text-[10px]"
+            animate={proactiveEnabled ? { opacity: [0.5, 1, 0.5] } : {}}
+            transition={{ repeat: Infinity, duration: 2 }}
+          >⚡</motion.span>
         </button>
 
         <div className="w-px h-3 bg-cyan-500/30 mx-1" />

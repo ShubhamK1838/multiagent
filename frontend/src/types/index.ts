@@ -8,9 +8,9 @@ export interface Conversation {
 
 export interface Message {
   id: string
-  role: 'user' | 'assistant'
+  role: 'user' | 'assistant' | 'thinking'
   content: string
-  createdAt: string
+  createdAt?: string
 }
 
 export type EventType =
@@ -30,6 +30,7 @@ export type EventType =
   | 'ERROR'
   | 'ITERATION_START'
   | 'ITERATION_END'
+  | 'PROACTIVE_ALERT'
 
 export interface AgentEvent {
   id: string
@@ -101,6 +102,40 @@ export interface AiModelInput {
   isEnabled?: boolean
   options?: Record<string, unknown>
   description?: string | null
+}
+
+export interface WorkflowStep {
+  id: string
+  workflowId: string
+  stepOrder: number
+  toolName: string
+  toolArgs: Record<string, unknown>
+}
+
+export interface Workflow {
+  id: string
+  name: string
+  description: string | null
+  runCount: number
+  lastRunAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface WorkflowWithSteps {
+  workflow: Workflow
+  steps: WorkflowStep[]
+}
+
+export interface ConversationSummary {
+  id: string
+  conversationId: string
+  summary: string
+  keyPaths: string[]
+  keyFacts: Record<string, unknown>
+  modelUsed: string | null
+  tokenCount: number | null
+  createdAt: string
 }
 
 export interface ToolExecution {

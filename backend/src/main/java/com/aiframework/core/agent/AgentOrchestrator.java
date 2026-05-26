@@ -8,6 +8,7 @@ import com.aiframework.core.event.EventType;
 import com.aiframework.core.tool.ToolExecutionResult;
 import com.aiframework.service.ConversationService;
 import com.aiframework.service.SettingsService;
+import com.aiframework.service.memory.SessionMemoryService;
 import com.aiframework.service.monitoring.LogStreamService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,7 @@ public class AgentOrchestrator {
     private final ConversationService conversationService;
     private final CancellationService cancellationService;
     private final LogStreamService logStreamService;
+    private final SessionMemoryService sessionMemoryService;
 
     @Async
     public void run(String conversationId, List<Message> history, String userMessage, String imageBase64) {
@@ -52,6 +54,7 @@ public class AgentOrchestrator {
             publishAgentEnd(conversationId, "Agent execution was cancelled by the user.");
         } else {
             logStreamService.agent("ORCHESTRATOR", "✓ AGENT_END conv=" + conversationId.substring(0, 8));
+            triggerMemorySummarization(conversationId);
         }
 
         cancellationService.clear(conversationId);
@@ -120,6 +123,14 @@ public class AgentOrchestrator {
         if (reasoning != null && !reasoning.isBlank()) {
             logStreamService.agent("LLM", "💭 THINKING: " + truncate(reasoning, 80));
             eventBus.publishThinking(conversationId, reasoning);
+        }
+    }
+
+    private void triggerMemorySummarization(String conversationId) {
+        try {
+            sessionMemoryService.summarizeAndSave(UUID.fromString(conversationId));
+        } catch (Exception e) {
+            log.warn("Memory summarization failed for conv {}: {}", conversationId, e.getMessage());
         }
     }
 

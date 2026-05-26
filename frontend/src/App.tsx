@@ -9,6 +9,7 @@ import { SettingsPanel } from './components/settings/SettingsPanel'
 import { RAGPanel } from './components/rag/RAGPanel'
 import { AiModelsPanel } from './components/aimodels/AiModelsPanel'
 import { FormModal } from './components/forms/FormModal'
+import { MemoryPanel } from './components/memory/MemoryPanel'
 import { useConversations } from './hooks/useConversations'
 import { useUiSettings } from './hooks/useUiSettings'
 import { ThemeProvider } from './components/shared/ThemeProvider'
@@ -79,6 +80,7 @@ function MainApp() {
                 )}
                 {activeView === 'models'   && <AiModelsPanel />}
                 {activeView === 'tools'    && <ToolManager />}
+                {activeView === 'memory'   && <MemoryPanel />}
                 {activeView === 'settings' && <SettingsPanel />}
                 {activeView === 'rag'      && <RAGPanel />}
                 {activeView === 'hud'      && <JarvisHUDView />}

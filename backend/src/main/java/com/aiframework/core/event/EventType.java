@@ -16,5 +16,6 @@ public enum EventType {
     AGENT_END,
     ERROR,
     ITERATION_START,
-    ITERATION_END
+    ITERATION_END,
+    PROACTIVE_ALERT
 }

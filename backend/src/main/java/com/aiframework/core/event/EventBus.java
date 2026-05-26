@@ -12,4 +12,5 @@ public interface EventBus {
     void publishToolResult(String conversationId, String toolName, String result);
     void publishToken(String conversationId, String token);
     void publishFormRequest(String conversationId, String formId, Object schema);
+    void publishProactiveAlert(String conversationId, String message);
 }

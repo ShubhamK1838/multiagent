@@ -111,6 +111,12 @@ export function useSSE(conversationId: string | null, onEvent?: (event: AgentEve
           store.setPendingForm(null)
           break
 
+        case 'PROACTIVE_ALERT':
+          if (event.content) {
+            store.addProactiveAlert(event.content)
+          }
+          break
+
         default:
           break
       }
@@ -120,7 +126,7 @@ export function useSSE(conversationId: string | null, onEvent?: (event: AgentEve
       'THINKING', 'TOOL_CALL', 'TOOL_RESULT', 'TOOL_ERROR',
       'FORM_REQUEST', 'FORM_RESOLVED', 'TOKEN', 'STREAM_RESET',
       'RESPONSE_START', 'RESPONSE_END', 'AGENT_START', 'AGENT_END', 'ERROR',
-      'ITERATION_START', 'ITERATION_END',
+      'ITERATION_START', 'ITERATION_END', 'PROACTIVE_ALERT',
     ]
 
     eventTypes.forEach(type => {

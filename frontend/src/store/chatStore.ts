@@ -16,6 +16,7 @@ interface ChatStore {
   streamingContent: Record<string, string>
   pendingForm: FormRequest | null
   isThinking: Record<string, boolean>
+  proactiveAlerts: string[]
 
   setConversations: (convs: Conversation[]) => void
   setActiveConversation: (id: string | null) => void
@@ -31,6 +32,8 @@ interface ChatStore {
   setThinking: (conversationId: string, thinking: boolean) => void
   clearEvents: (conversationId: string) => void
   clearThinkingMessages: (conversationId: string) => void
+  addProactiveAlert: (message: string) => void
+  dismissProactiveAlert: (index: number) => void
 }
 
 export const useChatStore = create<ChatStore>()((set, get) => ({
@@ -41,6 +44,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
   streamingContent: {},
   pendingForm: null,
   isThinking: {},
+  proactiveAlerts: [],
 
   setConversations: (convs) => set({ conversations: convs }),
   setActiveConversation: (id) => set({ activeConversationId: id }),
@@ -131,4 +135,8 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
         [conversationId]: (s.messages[conversationId] ?? []).filter(m => m.role !== 'thinking'),
       },
     })),
+  addProactiveAlert: (message) =>
+    set((s) => ({ proactiveAlerts: [...s.proactiveAlerts.slice(-2), message] })),
+  dismissProactiveAlert: (index) =>
+    set((s) => ({ proactiveAlerts: s.proactiveAlerts.filter((_, i) => i !== index) })),
 }))

@@ -18,6 +18,9 @@ import { useTTS } from '../../hooks/useTTS';
 import { HudMessageFeed } from '../hud/HudMessageFeed';
 import { DiagramPanel } from '../hud/DiagramPanel';
 import type { DiagramData } from '../hud/DiagramPanel';
+import { ProactiveAlertToast } from '../hud/ProactiveAlertToast';
+import { WorkflowPanel } from '../hud/WorkflowPanel';
+import { proactiveModeApi } from '../../services/api';
 import type { AgentEvent } from '../../types';
 
 // Hex grid SVG background
@@ -76,8 +79,11 @@ export const JarvisHUDView: React.FC = () => {
   const [clearCount, setClearCount] = useState(0);
   const [injectedShape, setInjectedShape] = useState<any>(null);
   const [diagram, setDiagram] = useState<DiagramData | null>(null);
+  const [proactiveEnabled, setProactiveEnabled] = useState(false);
 
   const conversationId = useChatStore(state => state.activeConversationId);
+  const proactiveAlerts = useChatStore(state => state.proactiveAlerts);
+  const dismissProactiveAlert = useChatStore(state => state.dismissProactiveAlert);
   const { createConversation } = useConversations();
 
   // If no conversation is active when the HUD opens, create one automatically
@@ -246,6 +252,15 @@ export const JarvisHUDView: React.FC = () => {
     handleTextCommand(text);
   }, [handleTextCommand]);
 
+  const handleToggleProactive = useCallback(async () => {
+    try {
+      const result = await proactiveModeApi.toggle();
+      setProactiveEnabled(result.enabled);
+    } catch (e) {
+      console.error('Failed to toggle proactive mode', e);
+    }
+  }, []);
+
   const isCombat = theme === 'combat';
   const panels = layout.panels || {};
 
@@ -320,6 +335,16 @@ export const JarvisHUDView: React.FC = () => {
         )}
       </AnimatePresence>
 
+      {/* Proactive Alert Toasts */}
+      <ProactiveAlertToast alerts={proactiveAlerts} onDismiss={dismissProactiveAlert} />
+
+      {/* Workflow Panel */}
+      <AnimatePresence>
+        {panels.workflows?.visible && (
+          <WorkflowPanel key="workflows" onClose={() => togglePanelVisibility('workflows')} />
+        )}
+      </AnimatePresence>
+
       {/* ARC Reactor Menu — centered at bottom */}
       <div className="pointer-events-auto z-50">
         <ArcReactorMenu
@@ -358,6 +383,8 @@ export const JarvisHUDView: React.FC = () => {
         onSubmitTextCommand={handleTextCommand}
         ttsEnabled={ttsEnabled}
         onToggleTTS={() => setTtsEnabled(p => !p)}
+        proactiveEnabled={proactiveEnabled}
+        onToggleProactive={handleToggleProactive}
       />
     </div>
   );

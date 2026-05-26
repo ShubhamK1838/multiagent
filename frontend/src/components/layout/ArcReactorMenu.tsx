@@ -50,6 +50,14 @@ export const ArcReactorMenu: React.FC<ArcReactorMenuProps> = ({
       action: () => { onTogglePanel('logs'); setIsOpen(false); },
     },
     {
+      id: 'workflows',
+      label: 'WORKFLOWS',
+      icon: '▷',
+      color: '#34d399',
+      glow: 'rgba(52,211,153,0.6)',
+      action: () => { onTogglePanel('workflows'); setIsOpen(false); },
+    },
+    {
       id: 'theme',
       label: 'COMBAT',
       icon: '⚡',
