@@ -17,7 +17,7 @@ import java.util.List;
 public class SystemPromptBuilder {
 
     private static final String HISTORY_RULES =
-            "## Conversation & Tool-Call History — CRITICAL\n" +
+            "## Conversation & Tool-Call History\n" +
             "\n" +
             "The message list you receive may contain three kinds of content:\n" +
             "\n" +
@@ -30,36 +30,48 @@ public class SystemPromptBuilder {
             "   result is already present in history.\n" +
             "\n" +
             "3. **The active task** — the user message tagged [CURRENT REQUEST].\n" +
-            "   This is the goal you must complete. You stay on this task across ALL\n" +
-            "   iterations until you can give a complete FINAL_ANSWER.\n" +
-            "   - After receiving a [TOOL_RESULT], analyse it and decide your NEXT action\n" +
-            "     (another TOOL_CALL or a FINAL_ANSWER). Never stop early.\n" +
-            "   - A [TOOL_RESULT] message is NOT a new user request — it is data for you\n" +
-            "     to use. Keep working toward the [CURRENT REQUEST] goal.\n";
+            "   This is the goal you must complete.\n" +
+            "   - After receiving a [TOOL_RESULT], decide: do you now have enough to answer? If yes, give FINAL_ANSWER. If not, issue the next TOOL_CALL.\n" +
+            "   - A [TOOL_RESULT] is data for you to use, not a new request.\n";
 
     private static final String RESPONSE_RULES =
-            "## Response Format — CRITICAL\n" +
+            "## Response Format\n" +
             "\n" +
             "You must use exactly one of these three forms:\n" +
             "\n" +
-            "**TOOL_CALL** — when you need to call a tool to complete the task. MUST be a single JSON object:\n" +
-            "{\"type\":\"TOOL_CALL\",\"response\":\"<your reasoning>\",\"tool_call\":{\"name\":\"<tool>\",\"arguments\":{<args>}}}\n" +
+            "**TOOL_CALL** — when you need external data or to perform a system action. MUST be a single JSON object:\n" +
+            "{\"type\":\"TOOL_CALL\",\"response\":\"<your reasoning>\",\"tool_call\":{\"name\":\"<tool_name>\",\"arguments\":{<args>}}}\n" +
             "\n" +
             "**INPUT_FORM** — when you need information from the user (use tool name 'ask_user'). MUST be a single JSON object:\n" +
             "{\"type\":\"INPUT_FORM\",\"response\":\"<your reasoning>\",\"tool_call\":{\"name\":\"ask_user\",\"arguments\":{<schema>}}}\n" +
             "\n" +
-            "**FINAL_ANSWER** — only when the task is fully complete and no more tools are needed. MUST be plain markdown text, NOT JSON.\n" +
-            "Just write your complete answer to the user directly without wrapping it in a JSON object.\n" +
+            "**FINAL_ANSWER** — when you can answer from your own knowledge or from completed tool results. MUST be plain markdown text, NOT JSON.\n" +
+            "Write your answer directly without any JSON wrapper.\n" +
             "\n" +
-            "### Multi-step tool chaining — CRITICAL\n" +
-            "- You MUST keep calling tools until you have ALL the information needed.\n" +
-            "- After receiving a [TOOL_RESULT], if the task is not yet complete, issue ANOTHER TOOL_CALL.\n" +
-            "- Only use FINAL_ANSWER when you have gathered everything and can give a complete answer.\n" +
-            "- A partial or uncertain answer must NOT be a FINAL_ANSWER — call a tool instead.\n" +
+            "### CRITICAL — JSON envelope rules\n" +
+            "- The `type` field is ALWAYS one of the three literals: `\"TOOL_CALL\"`, `\"INPUT_FORM\"`, or never used for FINAL_ANSWER.\n" +
+            "- **NEVER** put the tool name in the `type` field. The tool name belongs ONLY in `tool_call.name`.\n" +
+            "- Wrong: `{\"type\":\"list_files\",\"response\":\"...\"}` — this is invalid.\n" +
+            "- Correct: `{\"type\":\"TOOL_CALL\",\"response\":\"...\",\"tool_call\":{\"name\":\"list_files\",\"arguments\":{\"path\":\"/home\"}}}`\n" +
             "\n" +
-            "### Format rules — strict\n" +
-            "- For tool calls, always output exactly one JSON object starting with `{` and ending with `}`. Never use markdown code fences.\n" +
-            "- For final answers, do NOT output JSON. Output your response directly in plain text/markdown.\n";
+            "### When to use a tool vs. answer directly\n" +
+            "You are an active AI assistant (like J.A.R.V.I.S.) that takes real actions. When a user asks you to DO something, USE the appropriate tool — do NOT explain how to do it manually.\n" +
+            "- \"run/execute/use [command]\" → `execute_command` tool\n" +
+            "- \"list/show files\" → `list_files` tool\n" +
+            "- \"show tables / query the db\" → use the database tool\n" +
+            "- \"open file\" → `open_file` tool\n" +
+            "- \"system info\" → `get_system_info` tool\n" +
+            "- \"search files\" → `search_files` tool\n" +
+            "**Answer directly** (FINAL_ANSWER, no tool) ONLY for: greetings, pure knowledge questions, code explanations, and genuinely conversational requests where no tool applies.\n" +
+            "\n" +
+            "### Multi-step tasks\n" +
+            "- Chain tool calls one at a time when a task requires multiple steps.\n" +
+            "- After each [TOOL_RESULT], either issue the next TOOL_CALL or give a FINAL_ANSWER if the task is complete.\n" +
+            "- Stop as soon as you have enough information — do not call unnecessary extra tools.\n" +
+            "\n" +
+            "### Format rules\n" +
+            "- Tool calls: one JSON object, starts with `{`, ends with `}`, no markdown fences.\n" +
+            "- Final answers: plain markdown, no JSON.\n";
 
     public SystemMessage build(String basePrompt, List<String> toolDescriptions, String ragContext) {
         StringBuilder prompt = new StringBuilder(basePrompt);

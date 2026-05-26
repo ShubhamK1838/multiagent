@@ -5,6 +5,8 @@ import com.aiframework.core.rag.RAGService;
 import com.aiframework.core.tool.ToolRegistry;
 import com.aiframework.domain.entity.ToolDefinitionEntity;
 import com.aiframework.service.SettingsService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -29,6 +31,7 @@ public class AgentMessageBuilder {
     private final RAGService ragService;
     private final SettingsService settings;
     private final ContextManager contextManager;
+    private final ObjectMapper objectMapper;
 
     public List<Message> buildInitialMessages(List<Message> history, String userMessage, String imageBase64) {
         List<Message> messages = new ArrayList<>();
@@ -67,8 +70,14 @@ public class AgentMessageBuilder {
     }
 
     private String describeTool(ToolDefinitionEntity tool) {
+        String paramsJson;
+        try {
+            paramsJson = objectMapper.writeValueAsString(tool.getParametersSchema());
+        } catch (JsonProcessingException e) {
+            paramsJson = tool.getParametersSchema().toString();
+        }
         return String.format("%s: %s | Parameters: %s",
-                tool.getName(), tool.getDescription(), tool.getParametersSchema());
+                tool.getName(), tool.getDescription(), paramsJson);
     }
 
     private String retrieveRagContext(String userMessage) {

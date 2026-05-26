@@ -10,7 +10,10 @@ export interface HandCursor {
   isActive: boolean;
 }
 
-export type GestureType = 'SWIPE_LEFT' | 'SWIPE_RIGHT' | 'SWIPE_UP' | 'SWIPE_DOWN' | 'NONE';
+export type GestureType =
+  | 'SWIPE_LEFT' | 'SWIPE_RIGHT' | 'SWIPE_UP' | 'SWIPE_DOWN'
+  | 'OPEN_PALM' | 'PINCH_DELETE' | 'TWO_HANDS_EXPAND'
+  | 'NONE';
 
 interface UseWebcamGesturesProps {
   onGesture?: (gesture: GestureType) => void;
@@ -33,6 +36,10 @@ export function useWebcamGestures({ onGesture, enabled = true }: UseWebcamGestur
     startTime: 0,
     lastGestureTime: 0
   });
+
+  // Extra state for new gestures
+  const pinchStartTimeRef = useRef<number>(0);
+  const twoHandsExpandRef = useRef<{ startDist: number; startTime: number } | null>(null);
 
   // Keep previous cursors for Hysteresis
   const prevCursorsRef = useRef<HandCursor[]>([]);
@@ -203,6 +210,7 @@ export function useWebcamGestures({ onGesture, enabled = true }: UseWebcamGestur
 
     if (now - state.lastGestureTime < 1000) return;
 
+    // --- Swipe detection (grab + release + movement) ---
     if (primary.isGrabbing && !state.isTracking) {
       state.isTracking = true;
       state.startX = primary.x;
@@ -226,6 +234,64 @@ export function useWebcamGestures({ onGesture, enabled = true }: UseWebcamGestur
           state.lastGestureTime = now;
         }
       }
+    }
+
+    // --- PINCH_DELETE: hold pinch > 1.5 s ---
+    if (primary.isPinching) {
+      if (pinchStartTimeRef.current === 0) {
+        pinchStartTimeRef.current = now;
+      } else if (now - pinchStartTimeRef.current > 1500) {
+        if (onGesture) onGesture('PINCH_DELETE');
+        pinchStartTimeRef.current = 0;
+        state.lastGestureTime = now;
+      }
+    } else {
+      pinchStartTimeRef.current = 0;
+    }
+
+    // --- OPEN_PALM: 4+ fingers extended, no pinch/grab ---
+    if (!primary.isGrabbing && !primary.isPinching) {
+      const hand = results.landmarks[0];
+      if (hand) {
+        // Finger extended = tip.y < pip.y (smaller y = higher in normalized space)
+        const indexExtended = hand[8].y < hand[6].y;
+        const middleExtended = hand[12].y < hand[10].y;
+        const ringExtended   = hand[16].y < hand[14].y;
+        const pinkyExtended  = hand[20].y < hand[18].y;
+        const extendedCount  = [indexExtended, middleExtended, ringExtended, pinkyExtended].filter(Boolean).length;
+
+        if (extendedCount >= 3 && now - state.lastGestureTime > 1500) {
+          if (onGesture) {
+            onGesture('OPEN_PALM');
+            state.lastGestureTime = now;
+          }
+        }
+      }
+    }
+
+    // --- TWO_HANDS_EXPAND: two open hands moving apart ---
+    if (newCursors.length === 2) {
+      const [a, b] = newCursors;
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      const exp = twoHandsExpandRef.current;
+
+      if (!a.isGrabbing && !b.isGrabbing && !a.isPinching && !b.isPinching) {
+        if (!exp) {
+          twoHandsExpandRef.current = { startDist: dist, startTime: now };
+        } else if (now - exp.startTime < 700 && dist - exp.startDist > 180) {
+          if (onGesture) {
+            onGesture('TWO_HANDS_EXPAND');
+            state.lastGestureTime = now;
+          }
+          twoHandsExpandRef.current = null;
+        } else if (now - exp.startTime >= 700) {
+          twoHandsExpandRef.current = { startDist: dist, startTime: now };
+        }
+      } else {
+        twoHandsExpandRef.current = null;
+      }
+    } else {
+      twoHandsExpandRef.current = null;
     }
   }, [onGesture]);
 

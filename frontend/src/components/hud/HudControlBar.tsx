@@ -13,6 +13,8 @@ interface HudControlBarProps {
   gesturesEnabled: boolean;
   onToggleGestures: () => void;
   onSubmitTextCommand: (text: string) => void;
+  ttsEnabled: boolean;
+  onToggleTTS: () => void;
 }
 
 export const HudControlBar: React.FC<HudControlBarProps> = ({
@@ -25,7 +27,9 @@ export const HudControlBar: React.FC<HudControlBarProps> = ({
   isAiProcessing,
   gesturesEnabled,
   onToggleGestures,
-  onSubmitTextCommand
+  onSubmitTextCommand,
+  ttsEnabled,
+  onToggleTTS
 }) => {
   const [inputText, setInputText] = useState('');
 
@@ -67,11 +71,38 @@ export const HudControlBar: React.FC<HudControlBarProps> = ({
       {/* Control Buttons */}
       <div className="flex items-center gap-2 px-4 py-1.5 bg-black/60 border border-cyan-500/30 rounded-full shadow-[0_0_15px_rgba(0,212,255,0.1)] backdrop-blur-md">
         
-        <button 
+        <button
           onClick={onResetLayout}
           className="text-[10px] uppercase font-mono tracking-widest text-cyan-500 hover:text-cyan-300 transition-colors px-2"
         >
           Reset Layout
+        </button>
+
+        <div className="w-px h-3 bg-cyan-500/30 mx-1" />
+
+        {/* TTS Toggle */}
+        <button
+          onClick={onToggleTTS}
+          title={ttsEnabled ? 'Mute voice output' : 'Enable voice output'}
+          className={`flex items-center justify-center w-7 h-7 rounded-full border transition-colors ${
+            ttsEnabled
+              ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 shadow-[0_0_8px_rgba(52,211,153,0.4)]'
+              : 'bg-transparent border-transparent text-gray-500 hover:text-gray-300'
+          }`}
+        >
+          {ttsEnabled ? (
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+            </svg>
+          ) : (
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+              <line x1="23" y1="9" x2="17" y2="15" />
+              <line x1="17" y1="9" x2="23" y2="15" />
+            </svg>
+          )}
         </button>
 
         <div className="w-px h-3 bg-cyan-500/30 mx-1" />

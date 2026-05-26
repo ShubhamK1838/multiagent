@@ -17,7 +17,14 @@ public class BuiltinToolExecutionStrategy implements ToolExecutionStrategy {
 
     @Override
     public ToolExecutionResult execute(ToolDefinitionEntity tool, Map<String, Object> args, String conversationId) {
-        String handler = (String) tool.getHandlerConfig().get("handler");
+        Map<String, Object> config = tool.getHandlerConfig();
+        if (config == null || !config.containsKey("handler")) {
+            return ToolExecutionResult.error("Tool '" + tool.getName() + "' has no handler configured");
+        }
+        String handler = (String) config.get("handler");
+        if (handler == null || handler.isBlank()) {
+            return ToolExecutionResult.error("Tool '" + tool.getName() + "' has an empty handler name");
+        }
         return registry.get(handler).execute(args, conversationId);
     }
 }

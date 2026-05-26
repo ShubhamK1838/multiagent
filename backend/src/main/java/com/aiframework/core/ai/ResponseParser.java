@@ -59,15 +59,24 @@ public class ResponseParser {
                 return buildToolCallResponse(root, responseText);
             }
 
-            // Fallback if it is a JSON object but lacks tool_call and isn't FINAL_ANSWER
-            // It might just be the model returning a JSON example as the final answer.
-            if (root.has("type") && "TOOL_CALL".equals(type)) {
-                // It explicitly claims to be a tool call but missing tool_call field
-                log.warn("Malformed tool call JSON (missing tool_call field): {}", abbreviate(trimmed));
+            // Explicitly claimed TOOL_CALL but missing the tool_call field
+            if ("TOOL_CALL".equals(type)) {
+                log.warn("Malformed TOOL_CALL JSON (missing tool_call field): {}", abbreviate(trimmed));
                 return LLMResponse.finalAnswer("Sorry — I tried to call a tool but produced an invalid request. Please rephrase or try again.");
             }
 
-            return LLMResponse.finalAnswer(trimmed);
+            // LLM used the tool name as the type value (e.g. {"type":"list_files","response":"..."})
+            // Recover by treating the type as the tool name (handles both lower and UPPER case).
+            if (!type.isEmpty() && type.matches("[A-Za-z][A-Za-z0-9_]*")) {
+                String inferredToolName = type.toLowerCase();
+                Map<String, Object> args = extractLooseArgs(root);
+                log.warn("LLM used tool name as type — recovering: tool={}, args={}", inferredToolName, args);
+                return LLMResponse.toolCall(responseText, inferredToolName, args);
+            }
+
+            // Unrecognised JSON shape — never leak raw JSON to the user
+            log.warn("Unrecognised JSON response shape, treating as error: {}", abbreviate(trimmed));
+            return LLMResponse.finalAnswer("I encountered an unexpected response format. Please try again.");
 
         } catch (JsonProcessingException e) {
             // It looked like JSON (had { and }), but failed to parse.
@@ -87,6 +96,22 @@ public class ResponseParser {
                         objectMapper.getTypeFactory().constructMapType(Map.class, String.class, Object.class))
                 : Map.of();
         return LLMResponse.toolCall(responseText, toolName, args);
+    }
+
+    /**
+     * Extracts any non-envelope fields from the root JSON as potential tool arguments.
+     * Used when the LLM formats a tool call incorrectly (type = tool name).
+     */
+    private Map<String, Object> extractLooseArgs(JsonNode root) {
+        Map<String, Object> args = new java.util.LinkedHashMap<>();
+        root.fields().forEachRemaining(entry -> {
+            String key = entry.getKey();
+            if (!key.equals("type") && !key.equals("response")) {
+                JsonNode val = entry.getValue();
+                args.put(key, val.isTextual() ? val.asText() : val.toString());
+            }
+        });
+        return args;
     }
 
     private String extractJsonBody(String trimmed) {

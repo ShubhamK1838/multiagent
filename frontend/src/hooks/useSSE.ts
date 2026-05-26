@@ -6,7 +6,12 @@ import type { AgentEvent } from '../types'
 export function useSSE(conversationId: string | null, onEvent?: (event: AgentEvent) => void) {
   const esRef = useRef<EventSource | null>(null)
   const store = useChatStore()
-  
+
+  // Tracks whether RESPONSE_END already finalized the stream for the current turn.
+  // Defined outside the effect so it persists across re-renders and is always
+  // read by reference (never stale) inside the event handler closure.
+  const streamFinalizedRef = useRef(new Set<string>())
+
   const onEventRef = useRef(onEvent)
   useEffect(() => {
     onEventRef.current = onEvent
@@ -22,7 +27,7 @@ export function useSSE(conversationId: string | null, onEvent?: (event: AgentEve
     const handleEvent = (type: string) => (e: MessageEvent) => {
       const event: AgentEvent = JSON.parse(e.data)
       store.addEvent(event)
-      
+
       if (onEventRef.current) {
         onEventRef.current(event)
       }
@@ -31,30 +36,59 @@ export function useSSE(conversationId: string | null, onEvent?: (event: AgentEve
         case 'TOKEN':
           store.appendToken(conversationId, event.content)
           break
+
         case 'STREAM_RESET':
           store.resetStream(conversationId)
           break
-        case 'AGENT_END':
-        case 'RESPONSE_END':
-          store.clearThinkingMessages(conversationId)
-          if (type === 'AGENT_END' && event.content && !store.streamingContent[conversationId]) {
-            store.addMessage(conversationId, {
-              id: Date.now().toString() + Math.random(),
-              role: 'assistant',
-              content: event.content,
-            })
-          } else {
-            store.finalizeStream(conversationId)
-          }
-          store.setThinking(conversationId, false)
-          break
+
         case 'AGENT_START':
           store.setThinking(conversationId, true)
           store.clearThinkingMessages(conversationId)
+          // Reset per-turn flag so AGENT_END knows nothing is finalized yet
+          streamFinalizedRef.current.delete(conversationId)
           break
+
+        case 'RESPONSE_END': {
+          // Check before finalizing — empty stream means this was a tool-call iteration (JSON buffered)
+          const hadTokens = !!(useChatStore.getState().streamingContent[conversationId])
+          store.clearThinkingMessages(conversationId)
+          store.finalizeStream(conversationId)
+          if (hadTokens) {
+            // Real streamed answer — finalized, stop thinking
+            streamFinalizedRef.current.add(conversationId)
+            store.setThinking(conversationId, false)
+          }
+          // No tokens → tool-call iteration; keep thinking=true so the spinner persists
+          break
+        }
+
+        case 'AGENT_END': {
+          store.clearThinkingMessages(conversationId)
+
+          if (streamFinalizedRef.current.has(conversationId)) {
+            // RESPONSE_END already finalized the stream — nothing more to add
+            streamFinalizedRef.current.delete(conversationId)
+          } else {
+            // RESPONSE_END did not fire (non-streaming path, e.g. tool-only turns)
+            // Read CURRENT stream state — not the stale closure value
+            const currentStream = useChatStore.getState().streamingContent[conversationId]
+            if (currentStream) {
+              store.finalizeStream(conversationId)
+            } else if (event.content) {
+              store.addMessage(conversationId, {
+                id: Date.now().toString() + Math.random(),
+                role: 'assistant',
+                content: event.content,
+              })
+            }
+          }
+
+          store.setThinking(conversationId, false)
+          break
+        }
+
         case 'THINKING':
           store.setThinking(conversationId, true)
-          // Replace (not accumulate) — clear old thinking messages then add one
           store.clearThinkingMessages(conversationId)
           if (event.content && event.content.trim()) {
             store.addMessage(conversationId, {
@@ -64,6 +98,7 @@ export function useSSE(conversationId: string | null, onEvent?: (event: AgentEve
             })
           }
           break
+
         case 'FORM_REQUEST': {
           const formId = event.metadata?.formId as string
           if (formId) {
@@ -71,9 +106,11 @@ export function useSSE(conversationId: string | null, onEvent?: (event: AgentEve
           }
           break
         }
+
         case 'FORM_RESOLVED':
           store.setPendingForm(null)
           break
+
         default:
           break
       }
@@ -83,7 +120,7 @@ export function useSSE(conversationId: string | null, onEvent?: (event: AgentEve
       'THINKING', 'TOOL_CALL', 'TOOL_RESULT', 'TOOL_ERROR',
       'FORM_REQUEST', 'FORM_RESOLVED', 'TOKEN', 'STREAM_RESET',
       'RESPONSE_START', 'RESPONSE_END', 'AGENT_START', 'AGENT_END', 'ERROR',
-      'ITERATION_START', 'ITERATION_END'
+      'ITERATION_START', 'ITERATION_END',
     ]
 
     eventTypes.forEach(type => {
@@ -94,5 +131,5 @@ export function useSSE(conversationId: string | null, onEvent?: (event: AgentEve
       es.close()
       esRef.current = null
     }
-  }, [conversationId]) // Removed onEvent from dependency array to prevent connection loops
+  }, [conversationId]) // onEvent intentionally omitted — onEventRef keeps it current without reconnecting
 }

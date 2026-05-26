@@ -84,15 +84,12 @@ public class AgentOrchestrator {
 
         logStreamService.agent("LLM", "→ TOOL_INVOKE: " + response.getToolName());
         publishThinkingIfPresent(conversationId, response);
-        ToolExecutionResult result = toolCallExecutor.execute(response, conversationId, messages);
+        ToolExecutionResult result = toolCallExecutor.execute(response, conversationId);
 
         if (cancellationService.isCancelled(conversationId)) {
             return IterationOutcome.CANCELLED;
         }
 
-        if (result == null) {
-            return IterationOutcome.CONTINUE; // unknown tool, model will retry
-        }
         if (result.isRequiresUserInput()) {
             return IterationOutcome.PAUSED;
         }

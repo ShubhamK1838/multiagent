@@ -27,27 +27,22 @@ public class ToolCallExecutor {
     private final ToolDispatcher toolDispatcher;
     private final ObjectMapper objectMapper;
 
-    public ToolExecutionResult execute(LLMResponse response, String conversationId, List<Message> messages) {
+    public ToolExecutionResult execute(LLMResponse response, String conversationId) {
         try {
             ToolDefinitionEntity tool = toolRegistry.findByName(response.getToolName());
             return toolDispatcher.dispatch(tool, response.getToolArguments(), conversationId);
         } catch (IllegalArgumentException e) {
-            appendUnknownToolMessage(messages, response.getToolName());
-            return null;
+            String available = toolRegistry.getEnabledTools().stream()
+                    .map(ToolDefinitionEntity::getName)
+                    .collect(Collectors.joining(", "));
+            return ToolExecutionResult.error(
+                    "Tool '" + response.getToolName() + "' not found. Available: " + available);
         }
     }
 
     public void appendToolExchange(List<Message> messages, LLMResponse response, ToolExecutionResult result) {
         messages.add(new AssistantMessage(serializeToolCall(response)));
         messages.add(new UserMessage(formatToolResult(response.getToolName(), result)));
-    }
-
-    private void appendUnknownToolMessage(List<Message> messages, String requestedName) {
-        String available = toolRegistry.getEnabledTools().stream()
-                .map(ToolDefinitionEntity::getName)
-                .collect(Collectors.joining(", "));
-        messages.add(new UserMessage(
-                "Tool '" + requestedName + "' not found. Available: " + available));
     }
 
     private String serializeToolCall(LLMResponse response) {

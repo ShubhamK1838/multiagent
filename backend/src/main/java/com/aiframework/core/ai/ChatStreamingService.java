@@ -9,6 +9,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.List;
 
 /**
@@ -50,6 +51,7 @@ public class ChatStreamingService {
                 .messages(messages)
                 .stream()
                 .content()
+                .timeout(Duration.ofSeconds(90))
                 .doOnNext(token -> {
                     if (token == null || token.isEmpty()) return;
                     accumulator.append(token);

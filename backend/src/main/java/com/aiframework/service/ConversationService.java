@@ -33,12 +33,24 @@ public class ConversationService {
 
     @Transactional
     public MessageEntity saveMessage(UUID conversationId, String role, String content) {
+        ensureConversationExists(conversationId);
         MessageEntity message = MessageEntity.builder()
                 .conversationId(conversationId)
                 .role(role)
                 .content(content)
                 .build();
         return messageRepository.save(message);
+    }
+
+    private void ensureConversationExists(UUID conversationId) {
+        if (!conversationRepository.existsById(conversationId)) {
+            Conversation conversation = Conversation.builder()
+                    .id(conversationId)
+                    .title("New Conversation")
+                    .status("ACTIVE")
+                    .build();
+            conversationRepository.save(conversation);
+        }
     }
 
     public List<Message> getHistory(UUID conversationId) {

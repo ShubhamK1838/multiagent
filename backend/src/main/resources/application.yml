@@ -78,4 +78,4 @@ voice:
   autoplay: true
   wakeword:
     enabled: true
-    word: jarvis
+    word: jarvis

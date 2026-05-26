@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { DiagnosticsHUD } from '../DiagnosticsHUD';
 import { MatrixLogStream } from '../MatrixLogStream';
 import { ArcReactorMenu } from './ArcReactorMenu';
@@ -13,8 +13,9 @@ import { HudControlBar } from '../hud/HudControlBar';
 import { useHudConversation } from '../../hooks/useHudConversation';
 import { useChat } from '../../hooks/useChat';
 import { useSSE } from '../../hooks/useSSE';
+import { useTTS } from '../../hooks/useTTS';
+import { HudMessageFeed } from '../hud/HudMessageFeed';
 import type { AgentEvent } from '../../types';
-import Markdown from 'react-markdown';
 
 // Hex grid SVG background
 const HexBackground: React.FC = () => (
@@ -64,16 +65,18 @@ export const JarvisHUDView: React.FC = () => {
   
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [gesturesEnabled, setGesturesEnabled] = useState(getBoolean('ui.gestures.enabled', true));
+  const [ttsEnabled, setTtsEnabled] = useState(false);
+  const { speak, stop: stopTTS } = useTTS(ttsEnabled);
   const [annotations, setAnnotations] = useState<AIAnnotation[]>([]);
   const [isAiProcessing, setIsAiProcessing] = useState(false);
   const [canvasData, setCanvasData] = useState<string>('');
   const [clearCount, setClearCount] = useState(0);
   const [injectedShape, setInjectedShape] = useState<any>(null);
-  
+
   const { conversationId } = useHudConversation();
   const { sendMessage, streamContent, convMessages, thinking, sending } = useChat(conversationId);
-  const [aiOverlayText, setAiOverlayText] = useState('');
-  const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const lastSpokenCountRef = useRef(0);
 
   const handleFrontendEvent = useCallback((eventName: string, payload: any) => {
     if (eventName === 'draw_ui_shape') {
@@ -89,37 +92,17 @@ export const JarvisHUDView: React.FC = () => {
       } catch (e) {
         console.error("Failed to parse frontend event payload", e);
       }
-    } else if (event.type === 'TOOL_CALL') {
-      const tool = event.metadata?.tool as string || event.content || 'unknown tool';
-      setAiOverlayText(`> Executing sub-routine: ${tool}...`);
-      resetOverlayTimer();
     }
   });
 
-  const resetOverlayTimer = useCallback(() => {
-    if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
-    overlayTimerRef.current = setTimeout(() => {
-      setAiOverlayText('');
-    }, 30000); // Vanish after 30 seconds
-  }, []);
-
-  // Update text when streaming
-  useEffect(() => {
-    if (streamContent) {
-      setAiOverlayText(streamContent);
-      resetOverlayTimer();
-    }
-  }, [streamContent, resetOverlayTimer]);
-
-  // Update text when the final message is pushed
+  // Speak each new final AI message
   useEffect(() => {
     const aiMessages = convMessages.filter(m => m.role === 'assistant');
-    const lastAiMsg = aiMessages[aiMessages.length - 1];
-    if (lastAiMsg && !streamContent && !thinking && !sending) {
-      setAiOverlayText(lastAiMsg.content);
-      resetOverlayTimer();
+    if (!thinking && !sending && aiMessages.length > lastSpokenCountRef.current) {
+      lastSpokenCountRef.current = aiMessages.length;
+      speak(aiMessages[aiMessages.length - 1]?.content ?? '');
     }
-  }, [convMessages, streamContent, thinking, sending, resetOverlayTimer]);
+  }, [convMessages, thinking, sending, speak]);
 
   // Track dragging physics
   const dragState = useRef<{
@@ -139,8 +122,19 @@ export const JarvisHUDView: React.FC = () => {
       case 'SWIPE_RIGHT':
         if (!layout.panels.diagnostics?.visible) togglePanelVisibility('diagnostics');
         break;
+      case 'OPEN_PALM':
+        // Open both panels
+        if (!layout.panels.diagnostics?.visible) togglePanelVisibility('diagnostics');
+        if (!layout.panels.logs?.visible) togglePanelVisibility('logs');
+        break;
+      case 'TWO_HANDS_EXPAND':
+        resetLayout();
+        break;
+      case 'PINCH_DELETE':
+        stopTTS();
+        break;
     }
-  }, [layout.panels.diagnostics?.visible, togglePanelVisibility]);
+  }, [layout.panels, togglePanelVisibility, resetLayout, stopTTS]);
 
   // Handle panel physical dragging via webcam
   const handlePanelDrag = useCallback((x: number, y: number) => {
@@ -229,10 +223,7 @@ export const JarvisHUDView: React.FC = () => {
   };
 
   const handleTextCommand = useCallback((text: string) => {
-    if (text.trim()) {
-      setAiOverlayText(''); // clear previous response immediately when user asks a new question
-      sendMessage(text.trim());
-    }
+    if (text.trim()) sendMessage(text.trim());
   }, [sendMessage]);
 
   const handleVoiceCommand = useCallback((text: string) => {
@@ -266,33 +257,12 @@ export const JarvisHUDView: React.FC = () => {
           style={{ background: 'radial-gradient(ellipse at center, transparent 40%, rgba(180,0,0,0.15) 100%)' }} />
       )}
 
-      {/* Floating AI Response Overlay */}
-      <AnimatePresence>
-        {(aiOverlayText || isGlobalProcessing) && (
-          <motion.div
-            initial={{ opacity: 0, y: -20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="absolute top-24 left-1/2 -translate-x-1/2 z-50 pointer-events-none max-w-2xl w-full"
-          >
-            <div className="bg-black/70 backdrop-blur-xl border border-cyan-500/50 rounded-2xl p-6 shadow-[0_0_40px_rgba(0,212,255,0.2)]">
-              <div className="flex items-center gap-3 mb-3 border-b border-cyan-500/30 pb-2">
-                {isGlobalProcessing ? (
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping shadow-[0_0_10px_rgba(251,191,36,1)]" />
-                ) : (
-                  <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(0,212,255,1)]" />
-                )}
-                <span className="text-cyan-300 text-xs font-mono tracking-widest uppercase">
-                  {isGlobalProcessing ? 'J.A.R.V.I.S. is Processing...' : 'J.A.R.V.I.S. Response'}
-                </span>
-              </div>
-              <div className="prose prose-invert prose-cyan max-w-none font-mono text-sm leading-relaxed overflow-hidden text-ellipsis">
-                <Markdown>{aiOverlayText || '*Analyzing data matrices...*'}</Markdown>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Message Feed — top-right corner */}
+      <HudMessageFeed
+        messages={convMessages}
+        streamContent={streamContent}
+        thinking={thinking}
+      />
 
       {/* Main HUD Free Layout */}
       <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden">
@@ -359,6 +329,8 @@ export const JarvisHUDView: React.FC = () => {
         gesturesEnabled={gesturesEnabled}
         onToggleGestures={() => setGesturesEnabled(p => !p)}
         onSubmitTextCommand={handleTextCommand}
+        ttsEnabled={ttsEnabled}
+        onToggleTTS={() => setTtsEnabled(p => !p)}
       />
     </div>
   );
