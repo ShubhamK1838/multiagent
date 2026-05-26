@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { DiagnosticsHUD } from '../DiagnosticsHUD';
-import { ArcReactorMenu } from './ArcReactorMenu';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useHudLayout } from '../../hooks/useHudLayout';
 import { useUiSettings } from '../../hooks/useUiSettings';
@@ -266,8 +265,6 @@ export const JarvisHUDView: React.FC = () => {
   const isCombat = theme === 'combat';
   const panels = layout.panels || {};
 
-  const visiblePanelKeys = new Set(Object.entries(panels).filter(([_, p]) => p?.visible).map(([k]) => k));
-
   const isGlobalProcessing = isAiProcessing || sending || thinking;
 
   return (
@@ -338,15 +335,6 @@ export const JarvisHUDView: React.FC = () => {
           <WorkflowPanel key="workflows" onClose={() => togglePanelVisibility('workflows')} />
         )}
       </AnimatePresence>
-
-      {/* ARC Reactor Menu — centered at bottom */}
-      <div className="pointer-events-auto z-50">
-        <ArcReactorMenu
-          visiblePanels={visiblePanelKeys}
-          onTogglePanel={togglePanelVisibility}
-          onThemeToggle={toggleTheme}
-        />
-      </div>
 
       {/* Drawing Canvas Overlay */}
       <GestureCanvas
