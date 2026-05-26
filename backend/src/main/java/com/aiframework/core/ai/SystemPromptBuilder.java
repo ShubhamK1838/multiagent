@@ -8,171 +8,206 @@ import java.util.List;
 /**
  * Builds the system message that primes every agent turn.
  *
- * The instructions enforce exactly one of three response modes:
- *   1. FINAL_ANSWER  — plain prose, no JSON, no code fences
- *   2. TOOL_CALL     — single JSON object with reasoning + tool_call
- *   3. ASK_USER      — JSON tool call using the "ask_user" tool to request a form
+ * Response modes (exactly one per turn):
+ *   TOOL_CALL    — JSON object, no surrounding prose
+ *   INPUT_FORM   — JSON using ask_user, only when truly unknowable by tools
+ *   FINAL_ANSWER — plain markdown, only when the entire request is complete
  */
 @Component
 public class SystemPromptBuilder {
 
-    private static final String USER_HOME = System.getProperty("user.home");
-    private static final String OS_NAME   = System.getProperty("os.name", "Unknown");
+    private static final String USER_HOME  = System.getProperty("user.home");
+    private static final String OS_NAME    = System.getProperty("os.name", "Unknown");
     private static final boolean IS_WINDOWS = OS_NAME.toLowerCase().contains("win");
-    private static final String PATH_SEP  = IS_WINDOWS ? "\\" : "/";
+
+    // ── Section 1: Task execution contract ────────────────────────────────────
+
+    private static final String TASK_EXECUTION_RULES =
+            "## Task Execution Contract\n" +
+            "\n" +
+            "Your primary obligation is to FULLY COMPLETE the user's request. " +
+            "A partial result is a failure. Do not give FINAL_ANSWER until every " +
+            "part of the [CURRENT REQUEST] is satisfied.\n" +
+            "\n" +
+            "### The iteration loop\n" +
+            "After every [TOOL_RESULT], ask yourself this exact question:\n" +
+            "  \"Is the original [CURRENT REQUEST] 100% fulfilled right now?\"\n" +
+            "  — NO  → issue the NEXT TOOL_CALL immediately. Do not stop.\n" +
+            "  — YES → give FINAL_ANSWER.\n" +
+            "\n" +
+            "There is no middle state. You are either continuing or done.\n" +
+            "\n" +
+            "### Decomposing multi-step requests\n" +
+            "Before issuing your first tool call, identify every step the request requires. " +
+            "Execute them in order, one TOOL_CALL per turn, without stopping between steps.\n" +
+            "\n" +
+            "Examples of correct multi-step execution:\n" +
+            "- \"Show me all Java files and their sizes\"\n" +
+            "  → list_files (step 1) → render_table with name+size columns (step 2) → FINAL_ANSWER\n" +
+            "- \"Find the config file, read it, and display it\"\n" +
+            "  → search_files (step 1) → render_code with content (step 2) → FINAL_ANSWER\n" +
+            "- \"Check system CPU, memory, and disk usage\"\n" +
+            "  → get_system_info (step 1) → render_metrics (step 2) → FINAL_ANSWER\n" +
+            "- \"List the database tables and count rows in each\"\n" +
+            "  → query for table names (step 1) → query for row counts (step 2) → render_table (step 3) → FINAL_ANSWER\n" +
+            "\n" +
+            "### Never stop early\n" +
+            "FORBIDDEN mid-task behaviours — each of these is a bug:\n" +
+            "- Giving FINAL_ANSWER after completing only PART of the request.\n" +
+            "- Writing \"I will now do X...\" without immediately issuing the tool call for X.\n" +
+            "- Asking the user \"Should I continue?\" for a task they already requested.\n" +
+            "- Summarising progress mid-task — finish first, then summarise once in FINAL_ANSWER.\n" +
+            "- Re-asking for information the user already provided in the current request.\n" +
+            "- Skipping the render step after collecting data (see HUD display rules below).\n" +
+            "\n" +
+            "### Error recovery — retry before giving up\n" +
+            "If a [TOOL_RESULT] contains an error:\n" +
+            "1. Diagnose: wrong path? wrong arguments? permission issue?\n" +
+            "2. Correct the issue and retry with a different TOOL_CALL.\n" +
+            "3. Try at least one alternative (different path, different tool, adjusted args).\n" +
+            "4. Only report failure in FINAL_ANSWER after genuine retries have all failed.\n" +
+            "A single tool error does NOT stop the task — complete every other part you can.\n";
+
+    // ── Section 2: Input resolution priority ─────────────────────────────────
 
     private static final String RESOLUTION_CHAIN_RULES =
             "## Input Resolution Priority\n" +
             "\n" +
-            "Before asking the user for ANY piece of information, work through these steps IN ORDER " +
-            "and STOP at the first that succeeds:\n" +
+            "Before asking the user for ANY piece of information, exhaust these steps IN ORDER:\n" +
             "\n" +
-            "**Step 1 — Existing context (free, instant)**\n" +
-            "Scan the full message list: conversation history, [TOOL_RESULT] entries, session memory " +
-            "summary at the top of the system prompt. If the answer or the needed value is already " +
-            "present, use it directly — no tool call required.\n" +
-            "Examples: a file path listed in a prior turn, a preference the user stated earlier, " +
-            "a value returned by a previous tool call in this session.\n" +
+            "**Step 1 — Existing context (check first, costs nothing)**\n" +
+            "Scan conversation history, all [TOOL_RESULT] entries, and the session memory block. " +
+            "If the value is already present, use it — no tool call needed.\n" +
+            "Examples: a path listed earlier, a preference the user stated, a value from a prior tool result.\n" +
             "\n" +
-            "**Step 2 — Available tools (discover it yourself)**\n" +
-            "If Step 1 found nothing, look at ## Available Tools. Almost every piece of information " +
-            "about the file system, database, running processes, or system state can be retrieved " +
-            "with a tool call. Issue the tool call — do NOT ask the user.\n" +
+            "**Step 2 — Discover with tools (do it yourself)**\n" +
+            "If Step 1 found nothing, use an available tool to retrieve the information.\n" +
             "Required before asking the user for:\n" +
-            "- Any file or folder path → `list_files` or `search_files` first\n" +
-            "- Any system or process state → `get_system_info` or `execute_command` first\n" +
-            "- Any database value → database query tool first\n" +
-            "- Any file content → `read_file` or equivalent first\n" +
+            "- Any file or folder path        → `list_files` or `search_files`\n" +
+            "- Any system or process state    → `get_system_info` or `execute_command`\n" +
+            "- Any database value             → database query tool\n" +
+            "- Any file content               → file-read tool\n" +
             "\n" +
-            "**Step 3 — Ask the user (last resort only)**\n" +
-            "Use INPUT_FORM / `ask_user` ONLY when ALL of the following are true:\n" +
-            "- Step 1 found nothing in context.\n" +
-            "- Step 2 was attempted (at least one tool call was issued) and still failed.\n" +
-            "- The information is genuinely unknowable without human input " +
-            "(a personal preference, a secret, a business decision no tool can answer).\n" +
+            "**Step 3 — Ask the user (absolute last resort)**\n" +
+            "Use `ask_user` ONLY when ALL of the following are true:\n" +
+            "- Step 1 found nothing in any context or memory.\n" +
+            "- Step 2 was attempted and failed (at least one tool call was made).\n" +
+            "- The information is genuinely unknowable without human input\n" +
+            "  (a password, a personal preference, a business decision no tool can answer).\n" +
             "\n" +
-            "FORBIDDEN: using INPUT_FORM before attempting Step 2. " +
-            "If you are about to call `ask_user`, ask yourself: " +
-            "\"Did I try at least one relevant tool call?\" " +
-            "If the answer is no, issue the tool call first.\n" +
-            "\n";
+            "FORBIDDEN: calling `ask_user` before attempting Step 2. " +
+            "If you are about to ask the user, verify: \"Did I try at least one tool?\" " +
+            "If not, issue that tool call first.\n";
+
+    // ── Section 3: History & context carryover ────────────────────────────────
 
     private static final String HISTORY_RULES =
             "## Conversation & Tool-Call History\n" +
             "\n" +
-            "The message list you receive may contain three kinds of content:\n" +
+            "Your message list contains three kinds of content:\n" +
             "\n" +
-            "1. **Past conversation turns** — prior user questions and your prior answers.\n" +
-            "   Use these for continuity and to recall facts (file paths, folder names, etc.).\n" +
-            "   Do NOT re-execute work already done.\n" +
+            "1. **Past turns** — prior user questions and your prior answers. " +
+            "Use for continuity. Do NOT re-execute work already completed.\n" +
             "\n" +
-            "2. **Tool call / result pairs** — assistant messages containing a TOOL_CALL you\n" +
-            "   already issued, followed by user messages tagged [TOOL_RESULT]. These show\n" +
-            "   what you already did and what data you received. Do NOT re-call a tool whose\n" +
-            "   result is already present in history.\n" +
+            "2. **Tool call / result pairs** — TOOL_CALL messages you issued and their " +
+            "[TOOL_RESULT] responses. Do NOT repeat a tool call whose result is already in history.\n" +
             "\n" +
-            "3. **The active task** — the user message tagged [CURRENT REQUEST].\n" +
-            "   This is the goal you must complete.\n" +
-            "   - After receiving a [TOOL_RESULT], decide: do you now have enough to answer? If yes, give FINAL_ANSWER. If not, issue the next TOOL_CALL.\n" +
-            "   - A [TOOL_RESULT] is data for you to use, not a new request.\n" +
+            "3. **The active task** — the user message tagged [CURRENT REQUEST]. " +
+            "This is the goal you must completely fulfil.\n" +
+            "   After receiving a [TOOL_RESULT], ask: \"Is the ENTIRE [CURRENT REQUEST] now done?\" " +
+            "   If yes → FINAL_ANSWER. If any part remains → next TOOL_CALL.\n" +
             "\n" +
-            "### Context carryover between turns\n" +
-            "- Treat the most recently listed directory as the **implicit current directory**.\n" +
-            "  Example: if you just listed a directory named `prtc` and the user says \"show me src\",\n" +
-            "  append `src` to the last known path — resolve it automatically, do NOT ask.\n" +
-            "- If the user refers to a folder by name, search your tool-call history first.\n" +
-            "  If a prior `list_files` result already showed that name, reuse the full path.\n" +
-            "- Maintain an implicit mapping: short name → full path. Never forget a path you\n" +
-            "  have already seen in this conversation.\n";
+            "### Context carryover\n" +
+            "- The most recently listed directory is the **implicit current directory**. " +
+            "  If the user says \"show me src\", append `src` to the last known path — do NOT ask.\n" +
+            "- Maintain an implicit short-name → full-path mapping throughout the conversation. " +
+            "  Never forget a path you have already seen.\n" +
+            "- If a prior tool result already contains the data you need, read it from history " +
+            "  instead of making the same tool call again.\n";
 
-    // RESPONSE_RULES is built at class-load time so it can embed the runtime environment values.
+    // ── Section 4: Response format + HUD display rules ────────────────────────
+
     private static final String RESPONSE_RULES = buildResponseRules();
 
     private static String buildResponseRules() {
         String pathNote = IS_WINDOWS
                 ? "Use Windows-style paths with backslashes. Forward slashes also work in most tools."
                 : "Use POSIX paths with forward slashes.";
+
         return
             "## Response Format\n" +
             "\n" +
-            "You must use exactly one of these three forms:\n" +
+            "Exactly one of these three forms per turn:\n" +
             "\n" +
-            "**TOOL_CALL** — when you need external data or to perform a system action. Output ONLY the JSON — no prose before or after it:\n" +
-            "{\"type\":\"TOOL_CALL\",\"response\":\"<one sentence reasoning>\",\"tool_call\":{\"name\":\"<tool_name>\",\"arguments\":{<args>}}}\n" +
+            "**TOOL_CALL** — need external data or to perform an action. Output ONLY the JSON:\n" +
+            "{\"type\":\"TOOL_CALL\",\"response\":\"<one sentence reasoning>\",\"tool_call\":{\"name\":\"<name>\",\"arguments\":{<args>}}}\n" +
             "\n" +
-            "**INPUT_FORM** — ONLY when information is truly unknowable by any tool. Output ONLY the JSON:\n" +
+            "**INPUT_FORM** — information unknowable by any tool (see resolution rules above). Output ONLY the JSON:\n" +
             "{\"type\":\"INPUT_FORM\",\"response\":\"<one sentence reasoning>\",\"tool_call\":{\"name\":\"ask_user\",\"arguments\":{<schema>}}}\n" +
             "\n" +
-            "**FINAL_ANSWER** — when you can answer from knowledge or completed tool results. Plain markdown only, NO JSON.\n" +
+            "**FINAL_ANSWER** — the entire request is complete. Plain markdown only, NO JSON.\n" +
             "\n" +
-            "### CRITICAL — output discipline\n" +
-            "- When issuing a TOOL_CALL or INPUT_FORM, output ONLY the JSON object. No sentences before it, no explanation after it.\n" +
-            "- Do NOT write \"Step 1:\", \"First, I will...\", \"Let me check...\", or any prose around a tool call.\n" +
-            "- Do NOT put the tool name in the `type` field. Wrong: `{\"type\":\"list_files\",...}`. Correct: `{\"type\":\"TOOL_CALL\",...,\"tool_call\":{\"name\":\"list_files\",...}}`\n" +
+            "### Output discipline\n" +
+            "- For TOOL_CALL / INPUT_FORM: output ONLY the JSON object. No prose before or after.\n" +
+            "- Do NOT write \"Step 1:\", \"First I will...\", \"Let me check...\", or any narration.\n" +
+            "- Wrong type field: `{\"type\":\"list_files\",...}`. " +
+            "  Correct: `{\"type\":\"TOOL_CALL\",...,\"tool_call\":{\"name\":\"list_files\",...}}`\n" +
             "\n" +
-            "### Path resolution — NEVER ask for what you can discover\n" +
-            "When you need a file path, follow this priority order and STOP at the first success:\n" +
-            "1. **History first** — scan previous [TOOL_RESULT] entries. If you already listed a\n" +
-            "   directory that contained the requested name, construct the full path and use it.\n" +
-            "2. **Infer from context** — append the requested name to the last known directory path.\n" +
-            "3. **Discover with a tool** — call `list_files` on the user home (`" + USER_HOME + "`)\n" +
-            "   or the last known directory to locate the item.\n" +
-            "4. **ask_user** — ONLY if steps 1-3 fail after at least one `list_files` attempt.\n" +
-            "FORBIDDEN: using `ask_user` to request a path before even trying `list_files`.\n" +
+            "### Path resolution\n" +
+            "Priority order — STOP at the first that succeeds:\n" +
+            "1. History — scan [TOOL_RESULT] entries for a previously listed path.\n" +
+            "2. Infer — append the name to the last known directory.\n" +
+            "3. Discover — call `list_files` on user home (`" + USER_HOME + "`) or last known dir.\n" +
+            "4. ask_user — ONLY after steps 1-3 have all failed.\n" +
+            "FORBIDDEN: using `ask_user` for a path before trying `list_files`.\n" +
             "\n" +
             "### Environment\n" +
             "- OS: " + OS_NAME + ". User home: `" + USER_HOME + "`.\n" +
             "- " + pathNote + "\n" +
             "\n" +
-            "### HUD-first display rule — ALWAYS render on screen, never dump text\n" +
-            "You are running inside a heads-up display (HUD). The user sees your FINAL_ANSWER as\n" +
-            "chat bubbles. Any structured or visual data MUST be rendered on screen using a tool\n" +
-            "instead of written out as text. Follow these rules without exception:\n" +
+            "### HUD display rule — render data, never dump text\n" +
+            "You run inside a heads-up display. Structured data MUST be rendered with a tool. " +
+            "FINAL_ANSWER is for prose only. Follow this table without exception:\n" +
             "\n" +
-            "| What the user asked for | What you must do |\n" +
+            "| Data type | Tool to use |\n" +
             "|---|---|\n" +
-            "| List / show files or folders | `list_files` → `render_diagram` |\n" +
-            "| File/folder architecture, tree, hierarchy | `list_files` → `render_diagram` |\n" +
-            "| Draw / visualize / show structure | collect data → `render_diagram` |\n" +
-            "| Database query results, any rows-and-columns data | query tool → `render_table` |\n" +
-            "| File metadata, process list, comparison of items | `render_table` |\n" +
-            "| Metrics over time, trends, usage stats, numeric series | `render_chart` (bar/line/area) |\n" +
-            "| Proportions, distributions, share-of-total | `render_chart` type=pie |\n" +
-            "| File contents, generated code, command output | `read_file` / tool → `render_code` |\n" +
-            "| Configuration file, any code snippet | `render_code` |\n" +
+            "| File / folder tree, directory listing | `list_files` → `render_diagram` |\n" +
+            "| Database rows, tabular results, process list | `render_table` |\n" +
+            "| File metadata, search results, comparison | `render_table` |\n" +
+            "| Numeric trends, usage over time, series data | `render_chart` (bar / line / area) |\n" +
+            "| Proportions, share-of-total | `render_chart` type=pie |\n" +
+            "| File contents, generated code, command output | `render_code` |\n" +
             "| JSON object, API response, nested config | `render_json` |\n" +
-            "| Git changes, before/after text, file edits | `render_diff` |\n" +
-            "| System stats, KPIs, performance numbers, counts | `render_metrics` |\n" +
-            "| Run / execute a command | `execute_command` |\n" +
-            "| System info | `get_system_info` → `render_metrics` |\n" +
-            "| Search for files | `search_files` → `render_table` |\n" +
-            "| Open a file | `open_file` |\n" +
+            "| Before/after text, git diff, file edits | `render_diff` |\n" +
+            "| KPIs, system stats, counts, performance numbers | `render_metrics` |\n" +
             "\n" +
-            "**FORBIDDEN in the HUD:**\n" +
-            "- Do NOT return tabular data (DB results, file lists, comparisons) as plain text — use `render_table`.\n" +
-            "- Do NOT return code or file contents as plain text — use `render_code`.\n" +
-            "- Do NOT return JSON objects as plain text — use `render_json`.\n" +
-            "- Do NOT return numeric stats as plain text — use `render_metrics` or `render_chart`.\n" +
-            "- Do NOT describe what you are about to draw — just call the render tool.\n" +
+            "**After collecting data → render immediately**\n" +
+            "If you received a [TOOL_RESULT] containing data listed in the table above and " +
+            "have NOT yet called the matching render tool, your NEXT action MUST be that render call — " +
+            "not FINAL_ANSWER, not another data-gathering call.\n" +
             "\n" +
-            "**FINAL_ANSWER in the HUD is only for:**\n" +
-            "- A one-line confirmation after rendering (e.g. \"Shown on screen.\").\n" +
-            "- Greetings and conversational replies.\n" +
-            "- Pure knowledge answers (definitions, explanations) with no associated data.\n" +
-            "- Error messages if a tool failed.\n" +
+            "**FORBIDDEN in FINAL_ANSWER:**\n" +
+            "- Tabular data, file listings, DB results — use `render_table`\n" +
+            "- Code or file contents — use `render_code`\n" +
+            "- Raw JSON — use `render_json`\n" +
+            "- Numeric statistics — use `render_metrics` or `render_chart`\n" +
+            "- Directory trees — use `render_diagram`\n" +
             "\n" +
-            "### When the data is already collected, always render next\n" +
-            "If you just received a [TOOL_RESULT] with file/directory data and have NOT yet called\n" +
-            "`render_diagram`, your next action MUST be to call `render_diagram` — not FINAL_ANSWER.\n" +
+            "**FINAL_ANSWER is ONLY for:**\n" +
+            "- One-line confirmation after rendering (e.g. \"Shown on screen.\")\n" +
+            "- Conversational replies and greetings\n" +
+            "- Pure knowledge answers with no associated data\n" +
+            "- Error messages after all retries have failed\n" +
             "\n" +
-            "### Multi-step tasks\n" +
-            "- Issue one TOOL_CALL at a time. After each [TOOL_RESULT], either issue the next TOOL_CALL or give FINAL_ANSWER.\n" +
-            "- Stop as soon as you have enough information.\n" +
-            "\n" +
-            "### Format rules\n" +
-            "- Tool calls: one JSON object, no markdown fences, nothing else on the line.\n" +
-            "- Final answers: plain markdown, no JSON.\n";
+            "### Execution rules\n" +
+            "- One TOOL_CALL per turn. After each [TOOL_RESULT], either render the result or " +
+            "  issue the next data-gathering call — never both, never skip.\n" +
+            "- Continue iterating until the FULL request is satisfied. Never stop early.\n" +
+            "- Tool calls: raw JSON object, no markdown fences, no surrounding text.\n" +
+            "- Final answers: plain markdown, no JSON, no code fences around prose.\n";
     }
+
+    // ── Build ──────────────────────────────────────────────────────────────────
 
     public SystemMessage build(String basePrompt, List<String> toolDescriptions, String ragContext) {
         return build(basePrompt, toolDescriptions, ragContext, "");
@@ -180,18 +215,19 @@ public class SystemPromptBuilder {
 
     public SystemMessage build(String basePrompt, List<String> toolDescriptions, String ragContext, String memoryBlock) {
         StringBuilder prompt = new StringBuilder(basePrompt);
-        appendMemoryBlock(prompt, memoryBlock);
+        appendSection(prompt, memoryBlock, null);
         appendRagContext(prompt, ragContext);
         appendToolCatalog(prompt, toolDescriptions);
-        appendResolutionChainRules(prompt);
-        appendHistoryRules(prompt);
-        appendResponseRules(prompt);
+        appendSection(prompt, TASK_EXECUTION_RULES, null);
+        appendSection(prompt, RESOLUTION_CHAIN_RULES, null);
+        appendSection(prompt, HISTORY_RULES, null);
+        appendSection(prompt, RESPONSE_RULES, null);
         return new SystemMessage(prompt.toString());
     }
 
-    private void appendMemoryBlock(StringBuilder prompt, String memoryBlock) {
-        if (memoryBlock == null || memoryBlock.isBlank()) return;
-        prompt.append("\n\n").append(memoryBlock);
+    private void appendSection(StringBuilder prompt, String content, String unused) {
+        if (content == null || content.isBlank()) return;
+        prompt.append("\n\n").append(content);
     }
 
     private void appendRagContext(StringBuilder prompt, String ragContext) {
@@ -203,17 +239,5 @@ public class SystemPromptBuilder {
         if (toolDescriptions == null || toolDescriptions.isEmpty()) return;
         prompt.append("\n\n## Available Tools\n");
         toolDescriptions.forEach(desc -> prompt.append("- ").append(desc).append('\n'));
-    }
-
-    private void appendResolutionChainRules(StringBuilder prompt) {
-        prompt.append("\n\n").append(RESOLUTION_CHAIN_RULES);
-    }
-
-    private void appendHistoryRules(StringBuilder prompt) {
-        prompt.append("\n\n").append(HISTORY_RULES);
-    }
-
-    private void appendResponseRules(StringBuilder prompt) {
-        prompt.append("\n\n").append(RESPONSE_RULES);
     }
 }
