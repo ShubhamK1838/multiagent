@@ -7,6 +7,7 @@ import com.aiframework.core.event.EventBus;
 import com.aiframework.core.tool.ToolExecutionResult;
 import com.aiframework.service.ConversationService;
 import com.aiframework.service.SettingsService;
+import com.aiframework.service.memory.SessionMemoryService;
 import com.aiframework.service.monitoring.LogStreamService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,7 @@ class AgentOrchestratorTest {
     @Mock ConversationService conversationService;
     @Mock CancellationService cancellationService;
     @Mock LogStreamService logStreamService;
+    @Mock SessionMemoryService sessionMemoryService;
 
     private AgentOrchestrator orchestrator;
     private final String CONV_ID = UUID.randomUUID().toString();
@@ -44,7 +46,7 @@ class AgentOrchestratorTest {
         orchestrator = new AgentOrchestrator(
                 llmService, messageBuilder, toolCallExecutor,
                 eventBus, settings, conversationService,
-                cancellationService, logStreamService);
+                cancellationService, logStreamService, sessionMemoryService);
 
         when(settings.getInt(eq("agent.max_iterations"), anyInt())).thenReturn(10);
         // isCancelled returns boolean — Mockito default is false, so no stub needed

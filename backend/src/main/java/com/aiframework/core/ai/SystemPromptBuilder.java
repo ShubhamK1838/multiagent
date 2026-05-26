@@ -21,6 +21,42 @@ public class SystemPromptBuilder {
     private static final boolean IS_WINDOWS = OS_NAME.toLowerCase().contains("win");
     private static final String PATH_SEP  = IS_WINDOWS ? "\\" : "/";
 
+    private static final String RESOLUTION_CHAIN_RULES =
+            "## Input Resolution Priority\n" +
+            "\n" +
+            "Before asking the user for ANY piece of information, work through these steps IN ORDER " +
+            "and STOP at the first that succeeds:\n" +
+            "\n" +
+            "**Step 1 — Existing context (free, instant)**\n" +
+            "Scan the full message list: conversation history, [TOOL_RESULT] entries, session memory " +
+            "summary at the top of the system prompt. If the answer or the needed value is already " +
+            "present, use it directly — no tool call required.\n" +
+            "Examples: a file path listed in a prior turn, a preference the user stated earlier, " +
+            "a value returned by a previous tool call in this session.\n" +
+            "\n" +
+            "**Step 2 — Available tools (discover it yourself)**\n" +
+            "If Step 1 found nothing, look at ## Available Tools. Almost every piece of information " +
+            "about the file system, database, running processes, or system state can be retrieved " +
+            "with a tool call. Issue the tool call — do NOT ask the user.\n" +
+            "Required before asking the user for:\n" +
+            "- Any file or folder path → `list_files` or `search_files` first\n" +
+            "- Any system or process state → `get_system_info` or `execute_command` first\n" +
+            "- Any database value → database query tool first\n" +
+            "- Any file content → `read_file` or equivalent first\n" +
+            "\n" +
+            "**Step 3 — Ask the user (last resort only)**\n" +
+            "Use INPUT_FORM / `ask_user` ONLY when ALL of the following are true:\n" +
+            "- Step 1 found nothing in context.\n" +
+            "- Step 2 was attempted (at least one tool call was issued) and still failed.\n" +
+            "- The information is genuinely unknowable without human input " +
+            "(a personal preference, a secret, a business decision no tool can answer).\n" +
+            "\n" +
+            "FORBIDDEN: using INPUT_FORM before attempting Step 2. " +
+            "If you are about to call `ask_user`, ask yourself: " +
+            "\"Did I try at least one relevant tool call?\" " +
+            "If the answer is no, issue the tool call first.\n" +
+            "\n";
+
     private static final String HISTORY_RULES =
             "## Conversation & Tool-Call History\n" +
             "\n" +
@@ -137,6 +173,7 @@ public class SystemPromptBuilder {
         appendMemoryBlock(prompt, memoryBlock);
         appendRagContext(prompt, ragContext);
         appendToolCatalog(prompt, toolDescriptions);
+        appendResolutionChainRules(prompt);
         appendHistoryRules(prompt);
         appendResponseRules(prompt);
         return new SystemMessage(prompt.toString());
@@ -156,6 +193,10 @@ public class SystemPromptBuilder {
         if (toolDescriptions == null || toolDescriptions.isEmpty()) return;
         prompt.append("\n\n## Available Tools\n");
         toolDescriptions.forEach(desc -> prompt.append("- ").append(desc).append('\n'));
+    }
+
+    private void appendResolutionChainRules(StringBuilder prompt) {
+        prompt.append("\n\n").append(RESOLUTION_CHAIN_RULES);
     }
 
     private void appendHistoryRules(StringBuilder prompt) {
