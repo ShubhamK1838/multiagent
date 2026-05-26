@@ -112,7 +112,7 @@ export const ChartPanel: React.FC<ChartPanelProps> = ({ data, onClose }) => {
           <PieChart>
             <Pie data={pieData} dataKey="value" nameKey="name"
               cx="50%" cy="50%" outerRadius={110}
-              label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+              label={({ name, percent }: { name?: string; percent?: number }) => `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`}
               labelLine={{ stroke: 'rgba(0,212,255,0.2)', strokeWidth: 0.5 }}
             >
               {pieData.map((_, i) => (
@@ -129,6 +129,7 @@ export const ChartPanel: React.FC<ChartPanelProps> = ({ data, onClose }) => {
 
   return (
     <VizPanelBase
+      id="viz-chart"
       title={data.title} accent="#a855f7" accentRgb="168,85,247"
       badge={badge} onClose={onClose}
       initialLeft={Math.max(64, Math.round((window.innerWidth - 480) / 2))}

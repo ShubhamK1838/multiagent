@@ -2,12 +2,14 @@ import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useWorkflows } from '../../hooks/useWorkflows'
 import { useChatStore } from '../../store/chatStore'
+import { useGestureDraggable } from '../../hooks/useGestureDraggable'
 
 interface WorkflowPanelProps {
   onClose: () => void
 }
 
 export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({ onClose }) => {
+  const { ref, x, y } = useGestureDraggable('viz-workflows');
   const { workflows, loading, error, refresh, runWorkflow, deleteWorkflow } = useWorkflows()
   const conversationId = useChatStore(s => s.activeConversationId)
   const [runningName, setRunningName] = useState<string | null>(null)
@@ -36,6 +38,7 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({ onClose }) => {
 
   return (
     <motion.div
+      ref={ref}
       drag
       dragMomentum={false}
       initial={{ opacity: 0, scale: 0.9 }}
@@ -46,6 +49,8 @@ export const WorkflowPanel: React.FC<WorkflowPanelProps> = ({ onClose }) => {
         position: 'fixed',
         right: 20,
         top: 110,
+        x,
+        y,
         zIndex: 60,
         width: 380,
         maxHeight: '75vh',

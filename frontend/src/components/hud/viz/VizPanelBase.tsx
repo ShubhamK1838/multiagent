@@ -1,7 +1,9 @@
 import React from 'react'
 import { motion } from 'framer-motion'
+import { useGestureDraggable } from '../../../hooks/useGestureDraggable'
 
 export interface VizPanelBaseProps {
+  id: string
   title: string
   accent: string
   accentRgb: string
@@ -24,17 +26,20 @@ const CORNER_POSITIONS = [
 ] as const
 
 export const VizPanelBase: React.FC<VizPanelBaseProps> = ({
-  title, accent, accentRgb, badge, onClose,
+  id, title, accent, accentRgb, badge, onClose,
   initialLeft, initialRight, initialTop,
   width = 420, maxHeight = '78vh',
   footer, children,
 }) => {
+  const { ref, x, y } = useGestureDraggable(id)
+
   const posStyle = initialRight !== undefined
     ? { right: initialRight, top: initialTop }
     : { left: initialLeft ?? 64, top: initialTop }
 
   return (
     <motion.div
+      ref={ref}
       drag
       dragMomentum={false}
       initial={{ opacity: 0, scale: 0.9 }}
@@ -44,6 +49,8 @@ export const VizPanelBase: React.FC<VizPanelBaseProps> = ({
       style={{
         position: 'fixed',
         ...posStyle,
+        x,
+        y,
         zIndex: 60,
         width,
         maxHeight,

@@ -49,6 +49,7 @@ export const MetricsPanel: React.FC<MetricsPanelProps> = ({ data, onClose }) => 
 
   return (
     <VizPanelBase
+      id="viz-metrics"
       title={data.title} accent="#3b82f6" accentRgb="59,130,246"
       badge={badge} onClose={onClose}
       initialRight={440} initialTop={110} width={360} maxHeight="72vh"

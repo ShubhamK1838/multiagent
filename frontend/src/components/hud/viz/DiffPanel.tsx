@@ -72,6 +72,7 @@ export const DiffPanel: React.FC<DiffPanelProps> = ({ data, onClose }) => {
 
   return (
     <VizPanelBase
+      id="viz-diff"
       title={data.title} accent="#f97316" accentRgb="249,115,22"
       badge={badge} onClose={onClose}
       initialLeft={64} initialTop={400} width={600} maxHeight="70vh"

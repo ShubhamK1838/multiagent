@@ -157,6 +157,7 @@ export const JsonPanel: React.FC<JsonPanelProps> = ({ data, onClose }) => {
 
   return (
     <VizPanelBase
+      id="viz-json"
       title={data.title} accent="#fbbf24" accentRgb="251,191,36"
       badge={badge} onClose={onClose}
       initialLeft={500} initialTop={110} width={400} maxHeight="72vh"

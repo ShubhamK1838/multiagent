@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useGestureDraggable } from '../../hooks/useGestureDraggable';
 
 export interface DiagramItem {
   label: string;
@@ -171,6 +172,7 @@ const TreeRow: React.FC<RowProps> = ({ node, isLast, ancestorHasMore, expanded, 
 
 // ── Main panel ────────────────────────────────────────────────────────────────
 export const DiagramPanel: React.FC<DiagramPanelProps> = ({ data, onClose }) => {
+  const { ref, x, y } = useGestureDraggable('viz-diagram');
   const roots = useMemo(() => buildTree(data.items), [data.items]);
 
   // Default: expand only the root nodes
@@ -202,6 +204,7 @@ export const DiagramPanel: React.FC<DiagramPanelProps> = ({ data, onClose }) => 
 
   return (
     <motion.div
+      ref={ref}
       drag
       dragMomentum={false}
       initial={{ opacity: 0, scale: 0.9 }}
@@ -212,6 +215,8 @@ export const DiagramPanel: React.FC<DiagramPanelProps> = ({ data, onClose }) => 
         position: 'fixed',
         left: 64,
         top: 110,
+        x,
+        y,
         zIndex: 60,
         width: 420,
         maxHeight: '78vh',

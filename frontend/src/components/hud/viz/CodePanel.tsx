@@ -57,6 +57,7 @@ export const CodePanel: React.FC<CodePanelProps> = ({ data, onClose }) => {
 
   return (
     <VizPanelBase
+      id="viz-code"
       title={data.title} accent="#4ade80" accentRgb="74,222,128"
       badge={badge} onClose={onClose}
       initialRight={20} initialTop={300} width={520} maxHeight="70vh"

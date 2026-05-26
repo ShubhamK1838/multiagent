@@ -53,6 +53,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({ data, onClose }) => {
 
   return (
     <VizPanelBase
+      id="viz-table"
       title={data.title} accent="#00d4ff" accentRgb="0,212,255"
       badge={badge} onClose={onClose}
       initialLeft={64} initialTop={110} width={520} maxHeight="72vh"

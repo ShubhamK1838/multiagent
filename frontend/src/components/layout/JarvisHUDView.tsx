@@ -22,6 +22,7 @@ import { VizPanelHost } from '../hud/viz';
 import { useVizPanels } from '../../hooks/useVizPanels';
 import { proactiveModeApi } from '../../services/api';
 import type { AgentEvent } from '../../types';
+import { GestureRegistryProvider, useGestureRegistry } from '../../contexts/GestureRegistryContext';
 
 // Hex grid SVG background
 const HexBackground: React.FC = () => (
@@ -64,8 +65,15 @@ const CornerBrackets: React.FC = () => (
 );
 
 
-export const JarvisHUDView: React.FC = () => {
-  const { theme, toggleTheme } = useTheme();
+export const JarvisHUDView: React.FC = () => (
+  <GestureRegistryProvider>
+    <JarvisHUDContent />
+  </GestureRegistryProvider>
+);
+
+const JarvisHUDContent: React.FC = () => {
+  const { registry } = useGestureRegistry();
+  const { theme } = useTheme();
   const { layout, updatePanelPosition, updatePanelSize, togglePanelVisibility, bringToFront, resetLayout } = useHudLayout();
   const { getBoolean } = useUiSettings();
   
@@ -129,14 +137,17 @@ export const JarvisHUDView: React.FC = () => {
     }
   }, [convMessages, thinking, sending, speak]);
 
-  // Track dragging physics
+  // Track dragging physics (layout panels + registry panels)
   const dragState = useRef<{
     panelId: string | null,
+    registryId: string | null,
     offsetX: number,
     offsetY: number,
     initialWidth: number,
-    initialHeight: number
-  }>({ panelId: null, offsetX: 0, offsetY: 0, initialWidth: 0, initialHeight: 0 });
+    initialHeight: number,
+    lastX: number,
+    lastY: number,
+  }>({ panelId: null, registryId: null, offsetX: 0, offsetY: 0, initialWidth: 0, initialHeight: 0, lastX: 0, lastY: 0 });
 
   // Handle webcam gestures
   const handleGesture = useCallback((gesture: GestureType) => {
@@ -161,7 +172,8 @@ export const JarvisHUDView: React.FC = () => {
 
   // Handle panel physical dragging via webcam
   const handlePanelDrag = useCallback((x: number, y: number) => {
-    if (!dragState.current.panelId) {
+    if (!dragState.current.panelId && !dragState.current.registryId) {
+      // Check layout panels first
       for (const [id, panel] of Object.entries(layout.panels || {})) {
         if (!panel?.visible) continue;
         if (x >= panel.x && x <= panel.x + panel.width && y >= panel.y && y <= panel.y + panel.height) {
@@ -172,6 +184,18 @@ export const JarvisHUDView: React.FC = () => {
           dragState.current.initialHeight = panel.height;
           bringToFront(id);
           break;
+        }
+      }
+      // Then check gesture registry (viz panels, diagram, workflow)
+      if (!dragState.current.panelId) {
+        for (const [id, entry] of registry.current.entries()) {
+          const rect = entry.getRect();
+          if (rect && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+            dragState.current.registryId = id;
+            dragState.current.lastX = x;
+            dragState.current.lastY = y;
+            break;
+          }
         }
       }
     }
@@ -189,12 +213,24 @@ export const JarvisHUDView: React.FC = () => {
         updatePanelPosition(dragState.current.panelId, newX, newY);
       }
     }
-  }, [layout.panels, bringToFront, updatePanelPosition]);
+
+    if (dragState.current.registryId) {
+      const entry = registry.current.get(dragState.current.registryId);
+      if (entry) {
+        entry.nudge(x - dragState.current.lastX, y - dragState.current.lastY);
+        dragState.current.lastX = x;
+        dragState.current.lastY = y;
+      }
+    }
+  }, [layout.panels, bringToFront, updatePanelPosition, togglePanelVisibility, registry]);
 
   const handleDragEnd = useCallback(() => {
     dragState.current.panelId = null;
+    dragState.current.registryId = null;
     dragState.current.initialWidth = 0;
     dragState.current.initialHeight = 0;
+    dragState.current.lastX = 0;
+    dragState.current.lastY = 0;
   }, []);
 
   const handlePanelScale = useCallback((scaleFactor: number) => {
