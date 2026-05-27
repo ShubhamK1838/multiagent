@@ -15,7 +15,7 @@ const STYLES: Record<AiModelProvider, { label: string; icon: React.ElementType; 
 
 export function ProviderBadge({ provider, size = 'md' }: ProviderBadgeProps) {
   const s = STYLES[provider] ?? STYLES.OPENAI
-  const Icon = s.icon
+  const Icon = s.icon as React.ComponentType<{ size?: number | string }>
   const padding = size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs'
   return (
     <span className={clsx('inline-flex items-center gap-1.5 rounded-full border font-mono', padding, s.cls)}>

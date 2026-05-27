@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { clsx } from 'clsx'
 import { MessageSquare, Wrench, Settings, Database, Sparkles, Eye, Brain } from 'lucide-react'
@@ -53,7 +53,8 @@ export function TopNav({ activeView, onChange }: TopNavProps) {
 
       {/* Nav */}
       <nav className="flex items-center gap-0.5">
-        {ITEMS.map(({ id, label, icon: Icon }) => {
+        {ITEMS.map(({ id, label, icon: RawIcon }) => {
+          const Icon = RawIcon as React.ComponentType<{ size?: number | string }>
           const active = activeView === id
           return (
             <button
