@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { VoiceCommander } from './VoiceCommander';
+import { ArcReactorRing } from './ArcReactorRing';
 
 interface HudControlBarProps {
   isDrawingMode: boolean;
@@ -53,7 +54,12 @@ export const HudControlBar: React.FC<HudControlBarProps> = ({
         onSubmit={handleSubmit}
         className="w-full flex items-center bg-black/60 border border-cyan-500/40 rounded-full shadow-[0_0_15px_rgba(0,212,255,0.15)] backdrop-blur-md px-4 py-1.5 transition-colors focus-within:border-cyan-400 focus-within:shadow-[0_0_20px_rgba(0,212,255,0.3)]"
       >
-        <VoiceCommander onCommand={onVoiceCommand} isProcessing={isAiProcessing} />
+        <div className="relative flex items-center justify-center">
+          <ArcReactorRing active={!!isAiProcessing || ttsEnabled} size={28} />
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ zIndex: 2 }}>
+            <VoiceCommander onCommand={onVoiceCommand} isProcessing={isAiProcessing} />
+          </div>
+        </div>
         <div className="w-px h-5 bg-cyan-500/30 mx-3" />
         <input 
           type="text"

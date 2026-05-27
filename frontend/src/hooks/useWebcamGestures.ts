@@ -5,22 +5,32 @@ export interface HandCursor {
   id: string;
   x: number;
   y: number;
+  vx: number;   // velocity px/frame (smoothed)
+  vy: number;
   isPinching: boolean;
   isGrabbing: boolean;
+  isPointing: boolean;  // index extended, others curled — laser mode
   isActive: boolean;
+}
+
+export interface LaserPointer {
+  x: number; y: number
+  active: boolean
 }
 
 export type GestureType =
   | 'SWIPE_LEFT' | 'SWIPE_RIGHT' | 'SWIPE_UP' | 'SWIPE_DOWN'
   | 'OPEN_PALM' | 'PINCH_DELETE' | 'TWO_HANDS_EXPAND'
+  | 'FLICK'
   | 'NONE';
 
 interface UseWebcamGesturesProps {
   onGesture?: (gesture: GestureType) => void;
+  onFlick?: (vx: number, vy: number, x: number, y: number) => void;
   enabled?: boolean;
 }
 
-export function useWebcamGestures({ onGesture, enabled = true }: UseWebcamGesturesProps = {}) {
+export function useWebcamGestures({ onGesture, onFlick, enabled = true }: UseWebcamGesturesProps = {}) {
   const [cursors, setCursors] = useState<HandCursor[]>([]);
   const [isReady, setIsReady] = useState(false);
   
@@ -187,11 +197,24 @@ export function useWebcamGestures({ onGesture, enabled = true }: UseWebcamGestur
         if (distGrab < handScale * 1.1) isGrabbing = true;
       }
 
+      // Pointing: index extended, middle/ring/pinky curled
+      const indexExtended  = hand[8].y  < hand[6].y;
+      const middleCurled   = hand[12].y > hand[10].y;
+      const ringCurled     = hand[16].y > hand[14].y;
+      const pinkyCurled    = hand[20].y > hand[18].y;
+      const isPointing = indexExtended && middleCurled && ringCurled && pinkyCurled && !isPinching;
+
+      // Velocity (smoothed)
+      const vx = prev ? (x - prev.x) * 0.6 + (prev.vx ?? 0) * 0.4 : 0;
+      const vy = prev ? (y - prev.y) * 0.6 + (prev.vy ?? 0) * 0.4 : 0;
+
       return {
         id,
         x, y,
+        vx, vy,
         isPinching,
         isGrabbing,
+        isPointing,
         isActive: true
       };
     });
@@ -223,13 +246,18 @@ export function useWebcamGestures({ onGesture, enabled = true }: UseWebcamGestur
       const duration = now - state.startTime;
 
       if (duration < 600 && Math.max(Math.abs(dx), Math.abs(dy)) > 150) {
-        let detected: GestureType;
-        if (Math.abs(dx) > Math.abs(dy)) {
-          detected = dx > 0 ? 'SWIPE_RIGHT' : 'SWIPE_LEFT';
-        } else {
-          detected = dy > 0 ? 'SWIPE_DOWN' : 'SWIPE_UP';
-        }
-        if (onGesture) {
+        // Fast release = FLICK (throw), slow = SWIPE (navigate)
+        const speed = Math.hypot(primary.vx, primary.vy);
+        if (speed > 18 && onFlick) {
+          onFlick(primary.vx, primary.vy, primary.x, primary.y);
+          state.lastGestureTime = now;
+        } else if (onGesture) {
+          let detected: GestureType;
+          if (Math.abs(dx) > Math.abs(dy)) {
+            detected = dx > 0 ? 'SWIPE_RIGHT' : 'SWIPE_LEFT';
+          } else {
+            detected = dy > 0 ? 'SWIPE_DOWN' : 'SWIPE_UP';
+          }
           onGesture(detected);
           state.lastGestureTime = now;
         }

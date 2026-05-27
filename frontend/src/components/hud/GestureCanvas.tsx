@@ -2,6 +2,15 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import type { GestureType } from '../../hooks/useWebcamGestures';
 import { useWebcamGestures } from '../../hooks/useWebcamGestures';
 
+// Pointing finger cursor (laser pointer mode)
+const PointIcon = () => (
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_0_12px_rgba(0,255,170,0.9)]">
+    <path d="M9 12V5a2 2 0 0 1 4 0v4" />
+    <path d="M13 11V8a2 2 0 0 1 4 0v4" />
+    <path d="M17 12v-1a2 2 0 0 1 4 0v5a7.5 7.5 0 0 1-15 0V13a2 2 0 0 1 4 0" />
+  </svg>
+);
+
 // --- SVG Icons for Hand Cursor ---
 const OpenHandIcon = () => (
   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_0_8px_rgba(0,212,255,0.8)]">
@@ -45,6 +54,7 @@ interface GestureCanvasProps {
   onPanelDrag?: (x: number, y: number) => void;
   onPanelScale?: (scaleDelta: number) => void;
   onDragEnd?: (x: number, y: number) => void;
+  onFlick?: (vx: number, vy: number, x: number, y: number) => void;
   enabled?: boolean;
   smartShapes?: boolean;
   injectedShape?: any;
@@ -87,11 +97,12 @@ export const GestureCanvas: React.FC<GestureCanvasProps> = ({
   onPanelDrag,
   onPanelScale,
   onDragEnd,
+  onFlick,
   enabled = true,
   smartShapes = true,
   injectedShape
 }) => {
-  const { cursors } = useWebcamGestures({ onGesture, enabled });
+  const { cursors } = useWebcamGestures({ onGesture, onFlick, enabled });
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
   
@@ -389,19 +400,54 @@ export const GestureCanvas: React.FC<GestureCanvasProps> = ({
     }
   }, [injectedShape]);
 
+  // Draw laser ray for pointing cursor on canvas
+  useEffect(() => {
+    if (!enabled) return;
+    const ctx = contextRef.current;
+    const canvas = canvasRef.current;
+    if (!ctx || !canvas) return;
+
+    const pointingCursor = cursors.find(c => c.isPointing);
+    if (!pointingCursor) return;
+
+    // Laser beam from finger tip to screen edge
+    const { x, y } = pointingCursor;
+    const angle = Math.atan2(y - window.innerHeight / 2, x - window.innerWidth / 2)
+    const len = Math.max(window.innerWidth, window.innerHeight) * 1.5
+    const ex = x + Math.cos(angle) * len
+    const ey = y + Math.sin(angle) * len
+
+    const grd = ctx.createLinearGradient(x, y, ex, ey)
+    grd.addColorStop(0, 'rgba(0,255,170,0.9)')
+    grd.addColorStop(0.15, 'rgba(0,255,170,0.4)')
+    grd.addColorStop(1, 'rgba(0,255,170,0)')
+
+    ctx.save()
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+    ctx.lineTo(ex, ey)
+    ctx.strokeStyle = grd
+    ctx.lineWidth = 1.5
+    ctx.shadowColor = 'rgba(0,255,170,0.8)'
+    ctx.shadowBlur = 8
+    ctx.stroke()
+    ctx.restore()
+  }, [cursors, enabled]);
+
   // Derived state for Trash Zone UI
   const isHoveringTrash = cursors.some(c => c.isGrabbing && c.x > window.innerWidth - TRASH_ZONE_SIZE && c.y > window.innerHeight - TRASH_ZONE_SIZE);
 
   return (
     <div className={`absolute inset-0 z-40 ${isDrawingMode ? 'pointer-events-auto' : 'pointer-events-none'}`}>
       <canvas ref={canvasRef} className="w-full h-full" style={{ filter: 'drop-shadow(0 0 8px rgba(0,212,255,0.5))' }} />
-      
+
       {/* Hand Cursors */}
       {cursors.map((cursor) => {
         let Icon = OpenHandIcon;
         let colorClass = 'text-cyan-400';
         if (cursor.isGrabbing) { Icon = FistIcon; colorClass = 'text-red-400'; }
         else if (cursor.isPinching) { Icon = PinchIcon; colorClass = 'text-[#00ff88]'; }
+        else if (cursor.isPointing) { Icon = PointIcon; colorClass = 'text-[#00ffaa]'; }
 
         return (
           <div key={cursor.id}
@@ -415,6 +461,21 @@ export const GestureCanvas: React.FC<GestureCanvasProps> = ({
           </div>
         );
       })}
+
+      {/* Laser dot — glowing target where pointing ray hits (near panel edges or center) */}
+      {cursors.filter(c => c.isPointing).map(cursor => (
+        <div
+          key={`laser-${cursor.id}`}
+          className="absolute pointer-events-none rounded-full"
+          style={{
+            left: cursor.x - 5, top: cursor.y - 5,
+            width: 10, height: 10,
+            background: 'radial-gradient(circle, rgba(0,255,170,1) 0%, rgba(0,255,170,0.3) 60%, transparent 100%)',
+            boxShadow: '0 0 12px rgba(0,255,170,0.9), 0 0 24px rgba(0,255,170,0.4)',
+            zIndex: 55,
+          }}
+        />
+      ))}
 
       {/* AI Annotations overlay */}
       {annotations.map((ann, idx) => (

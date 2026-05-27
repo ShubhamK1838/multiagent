@@ -180,6 +180,9 @@ public class SystemPromptBuilder {
             "| JSON object, API response, nested config | `render_json` |\n" +
             "| Before/after text, git diff, file edits | `render_diff` |\n" +
             "| KPIs, system stats, counts, performance numbers | `render_metrics` |\n" +
+            "| Relationships, dependencies, graph/network data | `render_network` |\n" +
+            "| Geographic data, world locations, lat/lon points | `render_globe` |\n" +
+            "| Multi-dimensional data, clustering, 3-axis correlations | `render_scatter3d` |\n" +
             "\n" +
             "**After collecting data → render immediately**\n" +
             "If you received a [TOOL_RESULT] containing data listed in the table above and " +

@@ -23,6 +23,9 @@ import { useVizPanels } from '../../hooks/useVizPanels';
 import { proactiveModeApi } from '../../services/api';
 import type { AgentEvent } from '../../types';
 import { GestureRegistryProvider, useGestureRegistry } from '../../contexts/GestureRegistryContext';
+import { NeuralPulseBackground } from '../hud/NeuralPulseBackground';
+import { DataStreamRibbon } from '../hud/DataStreamRibbon';
+import type { RibbonEvent } from '../hud/DataStreamRibbon';
 
 // Hex grid SVG background
 const HexBackground: React.FC = () => (
@@ -88,7 +91,9 @@ const JarvisHUDContent: React.FC = () => {
   const [injectedShape, setInjectedShape] = useState<any>(null);
   const [diagram, setDiagram] = useState<DiagramData | null>(null);
   const [proactiveEnabled, setProactiveEnabled] = useState(false);
+  const [ribbons, setRibbons] = useState<RibbonEvent[]>([]);
   const { panels: vizPanels, dispatch: vizDispatch, dismiss: vizDismiss } = useVizPanels();
+  const commandBarRef = useRef<HTMLDivElement>(null);
 
   const conversationId = useChatStore(state => state.activeConversationId);
   const proactiveAlerts = useChatStore(state => state.proactiveAlerts);
@@ -119,6 +124,15 @@ const JarvisHUDContent: React.FC = () => {
   }, [vizDispatch]);
 
   useSSE(conversationId, (event: AgentEvent) => {
+    // Spawn a data stream ribbon on every tool call
+    if (event.type === 'TOOL_CALL') {
+      const fromEl = commandBarRef.current
+      const toX = Math.random() * (window.innerWidth * 0.6) + window.innerWidth * 0.2
+      const toY = Math.random() * (window.innerHeight * 0.5) + 120
+      const fromX = fromEl ? fromEl.getBoundingClientRect().left + fromEl.getBoundingClientRect().width / 2 : window.innerWidth / 2
+      const fromY = fromEl ? fromEl.getBoundingClientRect().bottom : 80
+      setRibbons(prev => [...prev, { id: event.id, fromX, fromY, toX, toY }])
+    }
     if (event.type === 'TOOL_RESULT' && event.metadata?.frontend_event) {
       try {
         handleFrontendEvent(event.metadata.frontend_event as string, JSON.parse(event.content || '{}'));
@@ -246,6 +260,22 @@ const JarvisHUDContent: React.FC = () => {
     }
   }, [layout.panels, updatePanelSize]);
 
+  // Flick/throw: animate a registry panel off-screen with velocity
+  const handleFlick = useCallback((vx: number, vy: number, x: number, y: number) => {
+    // Find which panel is at (x, y) in registry
+    for (const [, entry] of registry.current.entries()) {
+      const rect = entry.getRect();
+      if (rect && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+        // Throw it off-screen via rapid nudge
+        const THROW_DIST = 1200;
+        const spd = Math.hypot(vx, vy);
+        const nx = vx / spd, ny = vy / spd;
+        entry.nudge(nx * THROW_DIST, ny * THROW_DIST);
+        break;
+      }
+    }
+  }, [registry]);
+
   const handleClearCanvas = () => {
     setClearCount(c => c + 1);
     setAnnotations([]);
@@ -312,6 +342,9 @@ const JarvisHUDContent: React.FC = () => {
           : 'radial-gradient(ellipse at center, rgba(0,10,30,0.9) 0%, rgba(2,11,24,1) 100%)',
       }}
     >
+      {/* Neural pulse background — activates when AI is thinking */}
+      <NeuralPulseBackground isThinking={isGlobalProcessing} />
+
       {/* Background effects */}
       <HexBackground />
       <Scanlines />
@@ -382,12 +415,20 @@ const JarvisHUDContent: React.FC = () => {
         onPanelDrag={handlePanelDrag}
         onPanelScale={handlePanelScale}
         onDragEnd={handleDragEnd}
+        onFlick={handleFlick}
         enabled={gesturesEnabled && isDrawingMode}
         smartShapes={getBoolean('ui.gestures.smart_shapes', true)}
         injectedShape={injectedShape}
       />
 
+      {/* Data stream ribbons — animate from command bar to result panels on tool calls */}
+      <DataStreamRibbon
+        events={ribbons}
+        onComplete={id => setRibbons(prev => prev.filter(r => r.id !== id))}
+      />
+
       {/* HUD Control Bar */}
+      <div ref={commandBarRef} className="absolute top-0 left-0 right-0 z-[51] pointer-events-none" style={{ height: 80 }} />
       <HudControlBar
         isDrawingMode={isDrawingMode}
         onToggleDrawingMode={() => setIsDrawingMode(!isDrawingMode)}

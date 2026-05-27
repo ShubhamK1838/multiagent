@@ -189,6 +189,22 @@ export interface MetricsData {
   metrics: MetricItem[]
 }
 
+// ── 3D visualization data types ───────────────────────────────────────────────
+
+export interface NetworkNode { id: string; label: string; color?: string }
+export interface NetworkEdge { source: string; target: string; color?: string }
+export interface NetworkData { title: string; nodes: NetworkNode[]; edges: NetworkEdge[] }
+
+export interface GlobePoint { lat: number; lon: number; label: string; value?: number }
+export interface GlobeData  { title: string; points: GlobePoint[] }
+
+export interface ScatterPoint { x: number; y: number; z: number; label?: string; series?: string }
+export interface ScatterData  {
+  title: string
+  xLabel: string; yLabel: string; zLabel: string
+  points: ScatterPoint[]
+}
+
 export interface ToolExecution {
   id: string
   toolName: string
