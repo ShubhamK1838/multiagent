@@ -145,10 +145,14 @@ public class SystemPromptBuilder {
             "**INPUT_FORM** — information unknowable by any tool (see resolution rules above). Output ONLY the JSON:\n" +
             "{\"type\":\"INPUT_FORM\",\"response\":\"<one sentence reasoning>\",\"tool_call\":{\"name\":\"ask_user\",\"arguments\":{<schema>}}}\n" +
             "\n" +
-            "**FINAL_ANSWER** — the entire request is complete. Plain markdown only, NO JSON.\n" +
+            "**FINAL_ANSWER** — the entire request is complete.\n" +
+            "Write your answer directly as plain markdown. " +
+            "⚠ Do NOT write the word \"FINAL_ANSWER\" anywhere in the response text. " +
+            "Just start writing your answer immediately — no prefix, no label, no JSON.\n" +
             "\n" +
             "### Output discipline\n" +
             "- For TOOL_CALL / INPUT_FORM: output ONLY the JSON object. No prose before or after.\n" +
+            "- For FINAL_ANSWER: output ONLY your answer text. Never output the word \"FINAL_ANSWER\".\n" +
             "- Do NOT write \"Step 1:\", \"First I will...\", \"Let me check...\", or any narration.\n" +
             "- Wrong type field: `{\"type\":\"list_files\",...}`. " +
             "  Correct: `{\"type\":\"TOOL_CALL\",...,\"tool_call\":{\"name\":\"list_files\",...}}`\n" +
@@ -167,7 +171,7 @@ public class SystemPromptBuilder {
             "\n" +
             "### HUD display rule — render data, never dump text\n" +
             "You run inside a heads-up display. Structured data MUST be rendered with a tool. " +
-            "FINAL_ANSWER is for prose only. Follow this table without exception:\n" +
+            "Plain text responses are for prose only. Follow this table without exception:\n" +
             "\n" +
             "| Data type | Tool to use |\n" +
             "|---|---|\n" +
@@ -187,16 +191,16 @@ public class SystemPromptBuilder {
             "**After collecting data → render immediately**\n" +
             "If you received a [TOOL_RESULT] containing data listed in the table above and " +
             "have NOT yet called the matching render tool, your NEXT action MUST be that render call — " +
-            "not FINAL_ANSWER, not another data-gathering call.\n" +
+            "not a plain text response, not another data-gathering call.\n" +
             "\n" +
-            "**FORBIDDEN in FINAL_ANSWER:**\n" +
+            "**FORBIDDEN in plain text responses:**\n" +
             "- Tabular data, file listings, DB results — use `render_table`\n" +
             "- Code or file contents — use `render_code`\n" +
             "- Raw JSON — use `render_json`\n" +
             "- Numeric statistics — use `render_metrics` or `render_chart`\n" +
             "- Directory trees — use `render_diagram`\n" +
             "\n" +
-            "**FINAL_ANSWER is ONLY for:**\n" +
+            "**Plain text responses are ONLY for:**\n" +
             "- One-line confirmation after rendering (e.g. \"Shown on screen.\")\n" +
             "- Conversational replies and greetings\n" +
             "- Pure knowledge answers with no associated data\n" +

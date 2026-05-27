@@ -80,8 +80,16 @@ public class AgentOrchestrator {
         }
 
         if (!response.isToolCall()) {
-            logStreamService.agent("LLM", "✦ FINAL_ANSWER " + truncate(response.getContent(), 80));
-            publishAgentEnd(conversationId, response.getContent());
+            String content = response.getContent();
+            if (content == null || content.isBlank()) {
+                // LLM emitted only a mode keyword with no actual text — ask it to try again
+                logStreamService.warn("LLM", "⚠ Blank final answer received, nudging model to respond");
+                messages.add(new org.springframework.ai.chat.messages.UserMessage(
+                        "[SYSTEM] Your last response was empty. Please provide your actual answer now."));
+                return IterationOutcome.CONTINUE;
+            }
+            logStreamService.agent("LLM", "✦ FINAL_ANSWER " + truncate(content, 80));
+            publishAgentEnd(conversationId, content);
             return IterationOutcome.DONE;
         }
 

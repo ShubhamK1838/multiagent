@@ -24,7 +24,7 @@ public class ResponseParser {
         
         if (json == null) {
             // No { } found, so it must be a plain text final answer.
-            return LLMResponse.finalAnswer(trimmed);
+            return LLMResponse.finalAnswer(stripFinalAnswerPrefix(trimmed));
         }
 
         try {
@@ -32,7 +32,7 @@ public class ResponseParser {
             
             // If it parsed as JSON but isn't an object (e.g. string, array), it's probably not a tool call.
             if (!root.isObject()) {
-                 return LLMResponse.finalAnswer(trimmed);
+                 return LLMResponse.finalAnswer(stripFinalAnswerPrefix(trimmed));
             }
 
             String type = root.path("type").asText("").toUpperCase();
@@ -83,7 +83,7 @@ public class ResponseParser {
             // This happens often when the model writes code containing { and } in plain text final answers.
             // Treat the whole original message as the final answer instead of failing.
             log.debug("Found { } but not valid JSON. Treating as plain text final answer. Details: {}", e.getOriginalMessage());
-            return LLMResponse.finalAnswer(trimmed);
+            return LLMResponse.finalAnswer(stripFinalAnswerPrefix(trimmed));
         }
     }
 
@@ -112,6 +112,24 @@ public class ResponseParser {
             }
         });
         return args;
+    }
+
+    /**
+     * LLMs sometimes output "FINAL_ANSWER" or "FINAL_ANSWER:" as a literal prefix instead of
+     * just writing the response text. Strip it so the user never sees the keyword.
+     * If stripping leaves nothing, return the original so the caller can decide.
+     */
+    private String stripFinalAnswerPrefix(String text) {
+        if (text == null) return "";
+        String upper = text.toUpperCase();
+        // Match: FINAL_ANSWER, FINAL ANSWER, FINAL_ANSWER:, FINAL ANSWER:
+        for (String prefix : new String[]{"FINAL_ANSWER:", "FINAL ANSWER:", "FINAL_ANSWER", "FINAL ANSWER"}) {
+            if (upper.startsWith(prefix)) {
+                String rest = text.substring(prefix.length()).stripLeading();
+                return rest.isBlank() ? "" : rest;
+            }
+        }
+        return text;
     }
 
     private String extractJsonBody(String trimmed) {
