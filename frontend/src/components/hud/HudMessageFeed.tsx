@@ -33,15 +33,26 @@ const GlassBubble: React.FC<GlassBubbleProps> = ({ children, variant, isLatest, 
           : 'linear-gradient(135deg, rgba(0,80,180,0.10) 0%, rgba(0,10,30,0.55) 100%)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
-        border: isAI
-          ? `1px solid rgba(0,212,255,${isLatest ? '0.35' : '0.18'})`
-          : '1px solid rgba(0,128,255,0.18)',
-        borderLeft: isAI
-          ? `3px solid rgba(0,212,255,${isLatest ? '0.95' : '0.45'})`
-          : undefined,
-        borderRight: !isAI
-          ? '3px solid rgba(0,128,255,0.6)'
-          : undefined,
+        borderTopStyle: 'solid',
+        borderRightStyle: 'solid',
+        borderBottomStyle: 'solid',
+        borderLeftStyle: 'solid',
+        borderTopWidth: '1px',
+        borderBottomWidth: '1px',
+        borderLeftWidth: isAI ? '3px' : '1px',
+        borderRightWidth: !isAI ? '3px' : '1px',
+        borderTopColor: isAI
+          ? `rgba(0,212,255,${isLatest ? '0.35' : '0.18'})`
+          : 'rgba(0,128,255,0.18)',
+        borderBottomColor: isAI
+          ? `rgba(0,212,255,${isLatest ? '0.35' : '0.18'})`
+          : 'rgba(0,128,255,0.18)',
+        borderLeftColor: isAI
+          ? `rgba(0,212,255,${isLatest ? '0.95' : '0.45'})`
+          : 'rgba(0,128,255,0.18)',
+        borderRightColor: !isAI
+          ? 'rgba(0,128,255,0.6)'
+          : `rgba(0,212,255,${isLatest ? '0.35' : '0.18'})`,
         boxShadow: isLatest
           ? '0 4px 30px rgba(0,0,0,0.45), 0 0 20px rgba(0,212,255,0.10), inset 0 0 24px rgba(0,212,255,0.05)'
           : '0 4px 20px rgba(0,0,0,0.35), inset 0 0 16px rgba(0,212,255,0.03)',
@@ -101,21 +112,48 @@ const StreamCursor: React.FC = () => (
 );
 
 // ── Thinking dots ─────────────────────────────────────────────────────────────
-const ThinkingDots: React.FC = () => (
-  <GlassBubble variant="ai">
-    <div className="flex items-center gap-1.5 py-0.5">
-      {[0, 0.18, 0.36].map((delay, i) => (
-        <motion.span
-          key={i}
-          animate={{ opacity: [0.2, 1, 0.2], y: [0, -4, 0] }}
-          transition={{ repeat: Infinity, duration: 1.1, delay, ease: 'easeInOut' }}
-          className="w-1.5 h-1.5 rounded-full bg-amber-400"
-          style={{ boxShadow: '0 0 5px rgba(251,191,36,0.7)' }}
-        />
-      ))}
-    </div>
-  </GlassBubble>
-);
+// Escalating status text — reassures during the long first-token wait
+// (NVIDIA Maverick can take ~30s before the first token streams).
+const thinkingStage = (s: number): string => {
+  if (s < 4) return 'PROCESSING';
+  if (s < 10) return 'ENGAGING NEURAL CORE';
+  if (s < 20) return 'REASONING';
+  return 'MODEL WARMING UP — FIRST RESPONSE CAN TAKE ~30S';
+};
+
+const ThinkingDots: React.FC = () => {
+  const [elapsed, setElapsed] = React.useState(0);
+
+  React.useEffect(() => {
+    const start = Date.now();
+    const t = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 250);
+    return () => clearInterval(t);
+  }, []);
+
+  return (
+    <GlassBubble variant="ai">
+      <div className="flex items-center gap-2 py-0.5">
+        <div className="flex items-center gap-1.5">
+          {[0, 0.18, 0.36].map((delay, i) => (
+            <motion.span
+              key={i}
+              animate={{ opacity: [0.2, 1, 0.2], y: [0, -4, 0] }}
+              transition={{ repeat: Infinity, duration: 1.1, delay, ease: 'easeInOut' }}
+              className="w-1.5 h-1.5 rounded-full bg-amber-400"
+              style={{ boxShadow: '0 0 5px rgba(251,191,36,0.7)' }}
+            />
+          ))}
+        </div>
+        <span className="text-[9px] font-mono uppercase tracking-[0.18em] text-amber-300/70 truncate">
+          {thinkingStage(elapsed)}
+        </span>
+        <span className="text-[9px] font-mono tabular-nums text-amber-400/50 ml-auto shrink-0">
+          {elapsed}s
+        </span>
+      </div>
+    </GlassBubble>
+  );
+};
 
 // ── Raw streaming text — no markdown parsing cost per token ──────────────────
 const StreamingText: React.FC<{ content: string }> = ({ content }) => (

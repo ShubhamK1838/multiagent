@@ -15,6 +15,7 @@ public class AiModelRequest {
     private String modelId;
     private String baseUrl;
     private String apiKey;
+    private String awsRegion;
     private BigDecimal temperature;
     private Integer maxTokens;
     private Boolean isEnabled;

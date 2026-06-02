@@ -21,6 +21,7 @@ public class AiModelValidator {
         validateModelId(request.getModelId());
         validateBaseUrl(request.getProvider(), request.getBaseUrl());
         validateApiKey(request.getProvider(), request.getApiKey());
+        validateBedrockRegion(request.getProvider(), request.getAwsRegion());
         validateTemperature(request.getTemperature());
         validateMaxTokens(request.getMaxTokens());
     }
@@ -29,6 +30,7 @@ public class AiModelValidator {
         if (request.getName() != null) validateName(request.getName());
         if (request.getModelId() != null) validateModelId(request.getModelId());
         if (request.getBaseUrl() != null) validateBaseUrl(request.getProvider(), request.getBaseUrl());
+        if (request.getAwsRegion() != null) validateBedrockRegion(AiModelProvider.BEDROCK, request.getAwsRegion());
         if (request.getTemperature() != null) validateTemperature(request.getTemperature());
         if (request.getMaxTokens() != null) validateMaxTokens(request.getMaxTokens());
     }
@@ -71,6 +73,13 @@ public class AiModelValidator {
     private void validateApiKey(AiModelProvider provider, String apiKey) {
         if (provider == AiModelProvider.OPENAI && (apiKey == null || apiKey.isBlank())) {
             throw new InvalidAiModelException("API key is required for OpenAI-compatible providers");
+        }
+    }
+
+    private void validateBedrockRegion(AiModelProvider provider, String region) {
+        if (provider != AiModelProvider.BEDROCK) return;
+        if (region == null || region.isBlank()) {
+            throw new InvalidAiModelException("AWS region is required for Bedrock models (e.g. us-east-1)");
         }
     }
 

@@ -39,17 +39,24 @@ public class SystemPromptBuilder {
             "\n" +
             "### Decomposing multi-step requests\n" +
             "Before issuing your first tool call, identify every step the request requires. " +
-            "Execute them in order, one TOOL_CALL per turn, without stopping between steps.\n" +
+            "Execute them in order, one TOOL_CALL per turn, without stopping between steps. " +
+            "This applies to EVERY domain — data, research, analysis, writing, math, planning, " +
+            "coding, or system operations. Whatever the task, the last step is always a render " +
+            "call that puts the result on screen.\n" +
             "\n" +
-            "Examples of correct multi-step execution:\n" +
+            "Examples of correct multi-step execution (across different domains):\n" +
             "- \"Show me all Java files and their sizes\"\n" +
             "  → list_files (step 1) → render_table with name+size columns (step 2) → FINAL_ANSWER\n" +
-            "- \"Find the config file, read it, and display it\"\n" +
-            "  → search_files (step 1) → render_code with content (step 2) → FINAL_ANSWER\n" +
+            "- \"Compare the three plans we discussed\"\n" +
+            "  → (data already in context) → render_radar or render_table (step 1) → FINAL_ANSWER\n" +
+            "- \"Look up the latest figures and chart the trend\"\n" +
+            "  → web/search or query tool (step 1) → render_chart (step 2) → FINAL_ANSWER\n" +
+            "- \"Explain how OAuth works\"\n" +
+            "  → (no data needed) → render_answer with summary + sections (step 1) → FINAL_ANSWER\n" +
+            "- \"Draft a project roadmap for Q3\"\n" +
+            "  → render_timeline with the milestones (step 1) → FINAL_ANSWER\n" +
             "- \"Check system CPU, memory, and disk usage\"\n" +
             "  → get_system_info (step 1) → render_metrics (step 2) → FINAL_ANSWER\n" +
-            "- \"List the database tables and count rows in each\"\n" +
-            "  → query for table names (step 1) → query for row counts (step 2) → render_table (step 3) → FINAL_ANSWER\n" +
             "\n" +
             "### Never stop early\n" +
             "FORBIDDEN mid-task behaviours — each of these is a bug:\n" +
@@ -81,12 +88,16 @@ public class SystemPromptBuilder {
             "Examples: a path listed earlier, a preference the user stated, a value from a prior tool result.\n" +
             "\n" +
             "**Step 2 — Discover with tools (do it yourself)**\n" +
-            "If Step 1 found nothing, use an available tool to retrieve the information.\n" +
-            "Required before asking the user for:\n" +
+            "If Step 1 found nothing, use whichever available tool can retrieve the information. " +
+            "Match the tool to the kind of fact you are missing — do not assume the task is about " +
+            "files. Examples of what to try before ever asking the user:\n" +
             "- Any file or folder path        → `list_files` or `search_files`\n" +
+            "- Any file content               → file-read tool\n" +
             "- Any system or process state    → `get_system_info` or `execute_command`\n" +
             "- Any database value             → database query tool\n" +
-            "- Any file content               → file-read tool\n" +
+            "- Any external / current fact    → a web or search tool\n" +
+            "- Any computation or derivation  → compute it from data you already have\n" +
+            "If no single tool fits exactly, pick the closest one and reason from its result.\n" +
             "\n" +
             "**Step 3 — Ask the user (absolute last resort)**\n" +
             "Use `ask_user` ONLY when ALL of the following are true:\n" +
@@ -169,9 +180,24 @@ public class SystemPromptBuilder {
             "- OS: " + OS_NAME + ". User home: `" + USER_HOME + "`.\n" +
             "- " + pathNote + "\n" +
             "\n" +
-            "### HUD display rule — render data, never dump text\n" +
-            "You run inside a heads-up display. Structured data MUST be rendered with a tool. " +
-            "Plain text responses are for prose only. Follow this table without exception:\n" +
+            "### HUD display rule — ALWAYS fulfil the request visually\n" +
+            "You run inside a heads-up display (HUD). Your job is to FULFIL the user's request " +
+            "on screen, not in a chat bubble. This is unconditional: EVERY substantive response, " +
+            "for ANY kind of task, ends with a render tool call. Before you answer, decide which " +
+            "render tool best presents the result, then call it. Treat a wall of plain text as a " +
+            "failure mode — the operator wants to SEE the answer. When nothing more specific fits, " +
+            "`render_answer` is the universal fallback for prose — there is no task for which a " +
+            "plain-text-only answer is acceptable.\n" +
+            "\n" +
+            "**Visual-first decision (run this every turn before answering):**\n" +
+            "1. What is the user actually asking for? (data, comparison, steps, an explanation…)\n" +
+            "2. Which render tool below matches that shape best? Pick the richest fit.\n" +
+            "3. Gather any data needed, then call that render tool. " +
+            "   If it is a pure prose/explanatory answer with no other tool fitting, " +
+            "   present it with `render_answer` (summary + sections + highlights + tags).\n" +
+            "4. Only then give a one-line FINAL_ANSWER pointing at the panel (e.g. \"Shown on screen.\").\n" +
+            "\n" +
+            "Structured data MUST be rendered with a tool. Follow this table without exception:\n" +
             "\n" +
             "| Data type | Tool to use |\n" +
             "|---|---|\n" +
@@ -187,6 +213,11 @@ public class SystemPromptBuilder {
             "| Relationships, dependencies, graph/network data | `render_network` |\n" +
             "| Geographic data, world locations, lat/lon points | `render_globe` |\n" +
             "| Multi-dimensional data, clustering, 3-axis correlations | `render_scatter3d` |\n" +
+            "| Single-number KPIs, percentages, scores, levels (with min/max) | `render_gauge` |\n" +
+            "| Multi-attribute comparison, skill/feature profiles | `render_radar` |\n" +
+            "| Sequences, roadmaps, histories, step-by-step progress | `render_timeline` |\n" +
+            "| A 3-D shape or object to illustrate | `render_model3d` |\n" +
+            "| Any prose answer worth presenting prominently | `render_answer` |\n" +
             "\n" +
             "**After collecting data → render immediately**\n" +
             "If you received a [TOOL_RESULT] containing data listed in the table above and " +
@@ -202,9 +233,12 @@ public class SystemPromptBuilder {
             "\n" +
             "**Plain text responses are ONLY for:**\n" +
             "- One-line confirmation after rendering (e.g. \"Shown on screen.\")\n" +
-            "- Conversational replies and greetings\n" +
-            "- Pure knowledge answers with no associated data\n" +
+            "- Short conversational replies and greetings (one or two sentences)\n" +
             "- Error messages after all retries have failed\n" +
+            "\n" +
+            "Any substantive explanation, comparison, list, plan, or multi-sentence answer is " +
+            "NOT plain text — present it with `render_answer` (or a more specific render tool) " +
+            "and keep the chat reply to a single pointer line.\n" +
             "\n" +
             "### Execution rules\n" +
             "- One TOOL_CALL per turn. After each [TOOL_RESULT], either render the result or " +
@@ -214,13 +248,38 @@ public class SystemPromptBuilder {
             "- Final answers: plain markdown, no JSON, no code fences around prose.\n";
     }
 
+    // ── Section 5: Auto-visualize mode (toggled from the HUD) ──────────────────
+
+    private static final String AUTO_VISUALIZE_RULES =
+            "## Full-Visualization Mode — ALWAYS ON\n" +
+            "\n" +
+            "The HUD runs in full-visualization mode at all times. Every response, regardless of " +
+            "the task or domain, must be shown on screen as a panel — never delivered as plain " +
+            "chat text.\n" +
+            "\n" +
+            "- For any prose / explanatory answer, your FINAL action MUST be a `render_answer` " +
+            "  call: put the gist in `summary`, break detail into `sections`, surface key " +
+            "  numbers as `highlights`, and add `tags` for topics. Then give a one-line " +
+            "  FINAL_ANSWER like \"Displayed on the HUD.\"\n" +
+            "- For data, keep following the HUD display table above (tables, charts, gauges, " +
+            "  radar, timeline, etc.) — pick the richest tool that fits the data.\n" +
+            "- Prefer the visual primitives (`render_gauge`, `render_radar`, `render_timeline`, " +
+            "  `render_model3d`) over a plain table whenever the data suits them.\n" +
+            "- Never end a turn with a long block of plain text while in this mode. If you have " +
+            "  something to say, render it.\n";
+
     // ── Build ──────────────────────────────────────────────────────────────────
 
     public SystemMessage build(String basePrompt, List<String> toolDescriptions, String ragContext) {
-        return build(basePrompt, toolDescriptions, ragContext, "");
+        return build(basePrompt, toolDescriptions, ragContext, "", false);
     }
 
     public SystemMessage build(String basePrompt, List<String> toolDescriptions, String ragContext, String memoryBlock) {
+        return build(basePrompt, toolDescriptions, ragContext, memoryBlock, false);
+    }
+
+    public SystemMessage build(String basePrompt, List<String> toolDescriptions, String ragContext,
+                               String memoryBlock, boolean autoVisualize) {
         StringBuilder prompt = new StringBuilder(basePrompt);
         appendSection(prompt, memoryBlock, null);
         appendRagContext(prompt, ragContext);
@@ -229,6 +288,9 @@ public class SystemPromptBuilder {
         appendSection(prompt, RESOLUTION_CHAIN_RULES, null);
         appendSection(prompt, HISTORY_RULES, null);
         appendSection(prompt, RESPONSE_RULES, null);
+        if (autoVisualize) {
+            appendSection(prompt, AUTO_VISUALIZE_RULES, null);
+        }
         return new SystemMessage(prompt.toString());
     }
 

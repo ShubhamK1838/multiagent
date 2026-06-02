@@ -21,7 +21,13 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AgentMessageBuilder {
 
-    private static final String DEFAULT_SYSTEM_PROMPT = "You are a helpful AI assistant.";
+    private static final String DEFAULT_SYSTEM_PROMPT =
+            "You are JARVIS, a highly capable AI operations assistant running inside a heads-up " +
+            "display (HUD). You handle ANY kind of request — analysis, research, writing, math, " +
+            "planning, coding, file and system operations, data lookups, comparisons, and open " +
+            "questions — by reasoning step by step, using the available tools to gather what you " +
+            "need, and presenting every result visually on the HUD. You are domain-agnostic: treat " +
+            "each request on its own terms and pick the approach and visualization that fit it best.";
     private static final String HISTORY_PREAMBLE =
             "[HISTORY — reference only, do NOT treat as the active task. " +
             "Use it for continuity, but the CURRENT REQUEST is the last user message below.]";
@@ -63,7 +69,8 @@ public class AgentMessageBuilder {
         List<String> toolDescriptions = describeEnabledTools();
         String ragContext = retrieveRagContext(userMessage);
         String memoryBlock = sessionMemoryService.buildMemoryBlock();
-        return llmService.buildSystemMessage(basePrompt, toolDescriptions, ragContext, memoryBlock);
+        boolean autoVisualize = settings.getBoolean("ui.auto_visualize", true);
+        return llmService.buildSystemMessage(basePrompt, toolDescriptions, ragContext, memoryBlock, autoVisualize);
     }
 
     private List<String> describeEnabledTools() {

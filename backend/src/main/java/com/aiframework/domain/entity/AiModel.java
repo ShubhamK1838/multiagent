@@ -38,6 +38,9 @@ public class AiModel {
     @Column(name = "api_key", columnDefinition = "TEXT")
     private String apiKey;
 
+    @Column(name = "aws_region", length = 50)
+    private String awsRegion;
+
     @Column(nullable = false, precision = 3, scale = 2)
     private BigDecimal temperature;
 

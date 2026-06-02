@@ -18,6 +18,12 @@ interface HudControlBarProps {
   onToggleTTS: () => void;
   proactiveEnabled: boolean;
   onToggleProactive: () => void;
+  vizMode: boolean;
+  onToggleViz: () => void;
+  handsFree: boolean;
+  onToggleHandsFree: () => void;
+  onVoiceStart?: () => void;
+  onListeningChange?: (listening: boolean) => void;
 }
 
 export const HudControlBar: React.FC<HudControlBarProps> = ({
@@ -34,7 +40,13 @@ export const HudControlBar: React.FC<HudControlBarProps> = ({
   ttsEnabled,
   onToggleTTS,
   proactiveEnabled,
-  onToggleProactive
+  onToggleProactive,
+  vizMode,
+  onToggleViz,
+  handsFree,
+  onToggleHandsFree,
+  onVoiceStart,
+  onListeningChange
 }) => {
   const [inputText, setInputText] = useState('');
 
@@ -57,7 +69,7 @@ export const HudControlBar: React.FC<HudControlBarProps> = ({
         <div className="relative flex items-center justify-center">
           <ArcReactorRing active={!!isAiProcessing || ttsEnabled} size={28} />
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ zIndex: 2 }}>
-            <VoiceCommander onCommand={onVoiceCommand} isProcessing={isAiProcessing} />
+            <VoiceCommander onCommand={onVoiceCommand} isProcessing={isAiProcessing} handsFree={handsFree} onSpeechStart={onVoiceStart} onListeningChange={onListeningChange} />
           </div>
         </div>
         <div className="w-px h-5 bg-cyan-500/30 mx-3" />
@@ -90,6 +102,26 @@ export const HudControlBar: React.FC<HudControlBarProps> = ({
 
         <div className="w-px h-3 bg-cyan-500/30 mx-1" />
 
+        {/* Hands-free wake-word Toggle */}
+        <button
+          onClick={onToggleHandsFree}
+          title={handsFree ? 'Disable hands-free wake word ("Jarvis ...")' : 'Enable hands-free wake word ("Jarvis ...")'}
+          className={`flex items-center gap-1.5 px-3 py-1 rounded-full border transition-colors ${
+            handsFree
+              ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-[0_0_8px_rgba(0,212,255,0.4)]'
+              : 'bg-transparent border-transparent text-gray-500 hover:text-gray-300'
+          }`}
+        >
+          <motion.span
+            className={`w-2 h-2 rounded-full ${handsFree ? 'bg-cyan-400' : 'bg-gray-600'}`}
+            animate={handsFree ? { opacity: [0.4, 1, 0.4], scale: [1, 1.3, 1] } : {}}
+            transition={{ repeat: Infinity, duration: 1.6 }}
+          />
+          <span className="text-[10px] font-mono tracking-wider">WAKE</span>
+        </button>
+
+        <div className="w-px h-3 bg-cyan-500/30 mx-1" />
+
         {/* Proactive Mode Toggle */}
         <button
           onClick={onToggleProactive}
@@ -105,6 +137,26 @@ export const HudControlBar: React.FC<HudControlBarProps> = ({
             animate={proactiveEnabled ? { opacity: [0.5, 1, 0.5] } : {}}
             transition={{ repeat: Infinity, duration: 2 }}
           >⚡</motion.span>
+        </button>
+
+        <div className="w-px h-3 bg-cyan-500/30 mx-1" />
+
+        {/* Auto-Visualize Toggle */}
+        <button
+          onClick={onToggleViz}
+          title={vizMode ? 'Disable auto-visualize (answers render as HUD panels)' : 'Enable auto-visualize (answers render as HUD panels)'}
+          className={`flex items-center gap-1.5 px-3 py-1 rounded-full border transition-colors ${
+            vizMode
+              ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-[0_0_8px_rgba(0,212,255,0.4)]'
+              : 'bg-transparent border-transparent text-gray-500 hover:text-gray-300'
+          }`}
+        >
+          <motion.span
+            className={`w-2 h-2 rounded-full ${vizMode ? 'bg-cyan-400' : 'bg-gray-600'}`}
+            animate={vizMode ? { opacity: [0.4, 1, 0.4], scale: [1, 1.3, 1] } : {}}
+            transition={{ repeat: Infinity, duration: 1.6 }}
+          />
+          <span className="text-[10px] font-mono tracking-wider">VIZ</span>
         </button>
 
         <div className="w-px h-3 bg-cyan-500/30 mx-1" />

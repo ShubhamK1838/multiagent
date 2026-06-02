@@ -91,6 +91,7 @@ public class AiModelService {
                 .modelId(request.getModelId())
                 .baseUrl(request.getBaseUrl())
                 .apiKey(request.getApiKey())
+                .awsRegion(request.getAwsRegion())
                 .temperature(defaultIfNull(request.getTemperature(), new BigDecimal("0.70")))
                 .maxTokens(defaultIfNull(request.getMaxTokens(), 4096))
                 .isDefault(false)
@@ -106,6 +107,7 @@ public class AiModelService {
         if (request.getModelId() != null)     existing.setModelId(request.getModelId());
         if (request.getBaseUrl() != null)     existing.setBaseUrl(request.getBaseUrl());
         if (request.getApiKey() != null)      existing.setApiKey(request.getApiKey());
+        if (request.getAwsRegion() != null)   existing.setAwsRegion(request.getAwsRegion());
         if (request.getTemperature() != null) existing.setTemperature(request.getTemperature());
         if (request.getMaxTokens() != null)   existing.setMaxTokens(request.getMaxTokens());
         if (request.getIsEnabled() != null)   existing.setEnabled(request.getIsEnabled());

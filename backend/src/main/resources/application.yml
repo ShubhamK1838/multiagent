@@ -79,3 +79,11 @@ voice:
   wakeword:
     enabled: true
     word: jarvis
+  # Speech-to-text via a locally hosted NVIDIA Whisper NIM (OpenAI-compatible
+  # POST /v1/audio/transcriptions). Default port for the NIM container is 9000.
+  asr:
+    base-url: ${NVIDIA_ASR_URL:http://localhost:9000}
+    # 'multi' enables auto language detection; use e.g. 'en-US' to pin a language.
+    language: ${NVIDIA_ASR_LANGUAGE:en-US}
+    # Optional bearer token. Leave blank for a local NIM (cloud NVCF would need it).
+    api-key: ${NVIDIA_ASR_API_KEY:}

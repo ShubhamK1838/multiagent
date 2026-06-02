@@ -16,6 +16,7 @@ interface FormState {
   modelId: string
   baseUrl: string
   apiKey: string
+  awsRegion: string
   temperature: number
   maxTokens: number
   enabled: boolean
@@ -28,6 +29,7 @@ const EMPTY: FormState = {
   modelId: '',
   baseUrl: '',
   apiKey: '',
+  awsRegion: '',
   temperature: 0.7,
   maxTokens: 4096,
   enabled: true,
@@ -43,6 +45,7 @@ export function ModelFormModal({ open, editing, onClose, onSubmit }: ModelFormMo
       modelId: editing.modelId,
       baseUrl: editing.baseUrl ?? '',
       apiKey: '',
+      awsRegion: editing.awsRegion ?? '',
       temperature: editing.temperature,
       maxTokens: editing.maxTokens,
       enabled: editing.enabled,
@@ -60,8 +63,12 @@ export function ModelFormModal({ open, editing, onClose, onSubmit }: ModelFormMo
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setState(prev => ({ ...prev, [key]: value }))
 
-  const isValid = state.name.trim() && state.modelId.trim() &&
-    (state.provider === 'OLLAMA' || state.baseUrl.trim())
+  const isValid = (() => {
+    if (!state.name.trim() || !state.modelId.trim()) return false
+    if (state.provider === 'OPENAI') return !!state.baseUrl.trim()
+    if (state.provider === 'BEDROCK') return !!state.awsRegion.trim()
+    return true // OLLAMA
+  })()
 
   const submit = async () => {
     if (!isValid) return
@@ -72,13 +79,14 @@ export function ModelFormModal({ open, editing, onClose, onSubmit }: ModelFormMo
         name: state.name.trim(),
         provider: state.provider,
         modelId: state.modelId.trim(),
-        baseUrl: state.baseUrl.trim() || null,
+        baseUrl: state.provider === 'BEDROCK' ? null : (state.baseUrl.trim() || null),
         temperature: state.temperature,
         maxTokens: state.maxTokens,
         isEnabled: state.enabled,
         description: state.description.trim() || null,
       }
-      if (state.apiKey.trim()) payload.apiKey = state.apiKey.trim()
+      if (state.provider === 'OPENAI' && state.apiKey.trim()) payload.apiKey = state.apiKey.trim()
+      if (state.provider === 'BEDROCK') payload.awsRegion = state.awsRegion.trim()
       await onSubmit(payload)
       onClose()
     } catch (e) {
@@ -141,6 +149,7 @@ export function ModelFormModal({ open, editing, onClose, onSubmit }: ModelFormMo
             >
               <option value="OPENAI">OpenAI-compatible</option>
               <option value="OLLAMA">Ollama (local)</option>
+              <option value="BEDROCK">AWS Bedrock</option>
             </select>
           </div>
           <div>
@@ -149,45 +158,78 @@ export function ModelFormModal({ open, editing, onClose, onSubmit }: ModelFormMo
               className="input font-mono"
               value={state.modelId}
               onChange={e => update('modelId', e.target.value)}
-              placeholder={state.provider === 'OPENAI' ? 'gpt-4o' : 'llama3.1:8b'}
+              placeholder={
+                state.provider === 'OPENAI'  ? 'gpt-4o' :
+                state.provider === 'BEDROCK' ? 'anthropic.claude-3-5-sonnet-20240620-v1:0' :
+                'llama3.1:8b'
+              }
             />
           </div>
         </div>
 
-        <div>
-          <label className="label block mb-1.5">
-            Base URL {state.provider === 'OLLAMA' && <span className="text-gray-600 normal-case">— optional, defaults to http://localhost:11434</span>}
-          </label>
-          <input
-            className="input font-mono text-xs"
-            value={state.baseUrl}
-            onChange={e => update('baseUrl', e.target.value)}
-            placeholder={state.provider === 'OPENAI' ? 'https://api.openai.com' : 'http://localhost:11434'}
-          />
-        </div>
-
-        <div>
-          <label className="label block mb-1.5">
-            API key {state.provider === 'OLLAMA' && <span className="text-gray-600 normal-case">— not needed for Ollama</span>}
-          </label>
-          <div className="relative">
+        {state.provider === 'OPENAI' && (
+          <div>
+            <label className="label block mb-1.5">Base URL</label>
             <input
-              type={showKey ? 'text' : 'password'}
-              className="input font-mono text-xs pr-10"
-              value={state.apiKey}
-              onChange={e => update('apiKey', e.target.value)}
-              placeholder={editing?.hasApiKey ? '•••••••• (leave blank to keep current key)' : 'sk-…'}
+              className="input font-mono text-xs"
+              value={state.baseUrl}
+              onChange={e => update('baseUrl', e.target.value)}
+              placeholder="https://api.openai.com"
             />
-            <button
-              type="button"
-              onClick={() => setShowKey(v => !v)}
-              className="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-300"
-              aria-label={showKey ? 'Hide key' : 'Show key'}
-            >
-              {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
-            </button>
           </div>
-        </div>
+        )}
+
+        {state.provider === 'OLLAMA' && (
+          <div>
+            <label className="label block mb-1.5">
+              Base URL <span className="text-gray-600 normal-case">— optional, defaults to http://localhost:11434</span>
+            </label>
+            <input
+              className="input font-mono text-xs"
+              value={state.baseUrl}
+              onChange={e => update('baseUrl', e.target.value)}
+              placeholder="http://localhost:11434"
+            />
+          </div>
+        )}
+
+        {state.provider === 'BEDROCK' && (
+          <div>
+            <label className="label block mb-1.5">AWS region</label>
+            <input
+              className="input font-mono text-xs"
+              value={state.awsRegion}
+              onChange={e => update('awsRegion', e.target.value)}
+              placeholder="us-east-1"
+            />
+            <p className="text-[11px] text-gray-500 mt-1.5">
+              Credentials are read from the AWS default chain (env vars, <code>~/.aws/credentials</code>, or IAM role).
+            </p>
+          </div>
+        )}
+
+        {state.provider === 'OPENAI' && (
+          <div>
+            <label className="label block mb-1.5">API key</label>
+            <div className="relative">
+              <input
+                type={showKey ? 'text' : 'password'}
+                className="input font-mono text-xs pr-10"
+                value={state.apiKey}
+                onChange={e => update('apiKey', e.target.value)}
+                placeholder={editing?.hasApiKey ? '•••••••• (leave blank to keep current key)' : 'sk-…'}
+              />
+              <button
+                type="button"
+                onClick={() => setShowKey(v => !v)}
+                className="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-300"
+                aria-label={showKey ? 'Hide key' : 'Show key'}
+              >
+                {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <div>

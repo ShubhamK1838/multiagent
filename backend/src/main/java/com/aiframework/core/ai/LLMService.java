@@ -27,4 +27,9 @@ public class LLMService {
     public SystemMessage buildSystemMessage(String basePrompt, List<String> toolDescriptions, String ragContext, String memoryBlock) {
         return systemPromptBuilder.build(basePrompt, toolDescriptions, ragContext, memoryBlock);
     }
+
+    public SystemMessage buildSystemMessage(String basePrompt, List<String> toolDescriptions, String ragContext,
+                                            String memoryBlock, boolean autoVisualize) {
+        return systemPromptBuilder.build(basePrompt, toolDescriptions, ragContext, memoryBlock, autoVisualize);
+    }
 }

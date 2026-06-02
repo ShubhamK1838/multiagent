@@ -45,19 +45,25 @@ public class AgentOrchestrator {
         publishAgentStart(conversationId, userMessage);
         List<Message> messages = messageBuilder.buildInitialMessages(history, userMessage, imageBase64);
 
-        IterationOutcome outcome = runIterationLoop(conversationId, messages);
-        if (outcome == IterationOutcome.EXHAUSTED) {
-            logStreamService.warn("ORCHESTRATOR", "⚠ MAX_ITERATIONS reached for conv=" + conversationId.substring(0, 8));
-            publishAgentEnd(conversationId, MAX_ITERATIONS_MESSAGE);
-        } else if (outcome == IterationOutcome.CANCELLED) {
-            logStreamService.warn("ORCHESTRATOR", "⊘ CANCELLED by user for conv=" + conversationId.substring(0, 8));
-            publishAgentEnd(conversationId, "Agent execution was cancelled by the user.");
-        } else {
-            logStreamService.agent("ORCHESTRATOR", "✓ AGENT_END conv=" + conversationId.substring(0, 8));
-            triggerMemorySummarization(conversationId);
+            try {
+            IterationOutcome outcome = runIterationLoop(conversationId, messages);
+            if (outcome == IterationOutcome.EXHAUSTED) {
+                logStreamService.warn("ORCHESTRATOR", "⚠ MAX_ITERATIONS reached for conv=" + conversationId.substring(0, 8));
+                publishAgentEnd(conversationId, MAX_ITERATIONS_MESSAGE);
+            } else if (outcome == IterationOutcome.CANCELLED) {
+                logStreamService.warn("ORCHESTRATOR", "⊘ CANCELLED by user for conv=" + conversationId.substring(0, 8));
+                publishAgentEnd(conversationId, "Agent execution was cancelled by the user.");
+            } else {
+                logStreamService.agent("ORCHESTRATOR", "✓ AGENT_END conv=" + conversationId.substring(0, 8));
+                triggerMemorySummarization(conversationId);
+            }
+        } catch (Exception e) {
+            log.error("Agent run failed for conv {}: {}", conversationId, e.getMessage(), e);
+            logStreamService.error("ORCHESTRATOR", "✗ AGENT_FAILED conv=" + conversationId.substring(0, 8) + " : " + describeFailure(e));
+            publishAgentEnd(conversationId, friendlyError(e));
+        } finally {
+            cancellationService.clear(conversationId);
         }
-
-        cancellationService.clear(conversationId);
     }
 
     private IterationOutcome runIterationLoop(String conversationId, List<Message> messages) {
@@ -140,6 +146,30 @@ public class AgentOrchestrator {
         } catch (Exception e) {
             log.warn("Memory summarization failed for conv {}: {}", conversationId, e.getMessage());
         }
+    }
+
+    private String friendlyError(Throwable e) {
+        if (isTimeout(e)) {
+            return "The model did not respond in time and the request timed out. "
+                    + "It may be under heavy load or unreachable — please try again.";
+        }
+        return "Something went wrong while contacting the model: " + describeFailure(e)
+                + ". Please try again.";
+    }
+
+    private boolean isTimeout(Throwable e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            if (t instanceof java.util.concurrent.TimeoutException) return true;
+            if (t == t.getCause()) break;
+        }
+        return false;
+    }
+
+    private String describeFailure(Throwable e) {
+        Throwable root = e;
+        while (root.getCause() != null && root.getCause() != root) root = root.getCause();
+        String msg = root.getMessage();
+        return msg != null && !msg.isBlank() ? truncate(msg, 120) : root.getClass().getSimpleName();
     }
 
     private String truncate(String s, int max) {

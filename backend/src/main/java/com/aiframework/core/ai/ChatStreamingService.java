@@ -37,8 +37,11 @@ public class ChatStreamingService {
     public String stream(ChatClient client, List<Message> messages, String conversationId) {
         publishStart(conversationId);
         StringBuilder accumulator = new StringBuilder();
-        consumeStream(client, messages, accumulator, conversationId);
-        publishEnd(conversationId);
+        try {
+            consumeStream(client, messages, accumulator, conversationId);
+        } finally {
+            publishEnd(conversationId);
+        }
         return accumulator.toString();
     }
 

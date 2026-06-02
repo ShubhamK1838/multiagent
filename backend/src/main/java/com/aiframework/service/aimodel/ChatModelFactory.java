@@ -2,7 +2,9 @@ package com.aiframework.service.aimodel;
 
 import com.aiframework.domain.entity.AiModel;
 import com.aiframework.domain.entity.AiModelProvider;
+import org.springframework.ai.bedrock.converse.BedrockProxyChatModel;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.model.tool.ToolCallingChatOptions;
 import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.ai.ollama.api.OllamaApi;
 import org.springframework.ai.ollama.api.OllamaOptions;
@@ -10,6 +12,8 @@ import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.stereotype.Component;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
 
 @Component
 public class ChatModelFactory {
@@ -20,6 +24,7 @@ public class ChatModelFactory {
         return switch (model.getProvider()) {
             case OPENAI -> buildOpenAi(model);
             case OLLAMA -> buildOllama(model);
+            case BEDROCK -> buildBedrock(model);
         };
     }
 
@@ -54,6 +59,24 @@ public class ChatModelFactory {
 
         return OllamaChatModel.builder()
                 .ollamaApi(api)
+                .defaultOptions(options)
+                .build();
+    }
+
+    private ChatModel buildBedrock(AiModel model) {
+        ToolCallingChatOptions options = ToolCallingChatOptions.builder()
+                .model(model.getModelId())
+                .temperature(model.getTemperature().doubleValue())
+                .maxTokens(model.getMaxTokens())
+                .build();
+
+        // Auth resolution (handled by the AWS SDK, not by us):
+        //   1. If AWS_BEARER_TOKEN_BEDROCK is set, the SDK uses it as a Bedrock API key.
+        //   2. Otherwise it falls back to the IAM credentials chain
+        //      (env vars, ~/.aws/credentials, IAM role).
+        return BedrockProxyChatModel.builder()
+                .credentialsProvider(DefaultCredentialsProvider.create())
+                .region(Region.of(model.getAwsRegion()))
                 .defaultOptions(options)
                 .build();
     }

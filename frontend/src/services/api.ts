@@ -92,6 +92,17 @@ export const proactiveModeApi = {
     api.put<{ watchPath: string }>('/proactive/watch-path', { path }).then(r => r.data),
 }
 
+export const voiceApi = {
+  // Send recorded audio to the backend, which forwards it to the NVIDIA Whisper NIM.
+  transcribe: (audio: Blob) => {
+    const form = new FormData()
+    form.append('file', audio, 'audio.wav')
+    return api
+      .post<{ text?: string; error?: string }>('/voice/transcribe', form)
+      .then(r => r.data.text ?? '')
+  },
+}
+
 export const workflowApi = {
   list: () =>
     api.get<WorkflowWithSteps[]>('/workflows').then(r => r.data),

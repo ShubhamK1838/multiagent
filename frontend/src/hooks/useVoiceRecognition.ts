@@ -5,6 +5,23 @@ interface UseVoiceRecognitionOptions {
   lang?: string;
   continuous?: boolean;
   interimResults?: boolean;
+  /** When true, listens continuously and only acts on speech that starts with the wake word. */
+  handsFree?: boolean;
+  /** Wake word that activates a hands-free command (case-insensitive). */
+  wakeWord?: string;
+  /** Fired when the user starts speaking — used for TTS barge-in. */
+  onSpeechStart?: () => void;
+}
+
+// Strip a leading wake word (e.g. "hey jarvis, ...") and return the remaining command.
+function extractCommand(text: string, wakeWord: string): string | null {
+  const lower = text.toLowerCase();
+  const idx = lower.indexOf(wakeWord);
+  if (idx === -1) return null;
+  let rest = text.slice(idx + wakeWord.length);
+  // Drop a leading filler/punctuation after the wake word ("jarvis, ..." / "jarvis please ...")
+  rest = rest.replace(/^[\s,.!?:;-]+/, '').replace(/^(please|can you|could you)\s+/i, '');
+  return rest.trim();
 }
 
 export const useVoiceRecognition = ({
@@ -12,18 +29,24 @@ export const useVoiceRecognition = ({
   lang = 'en-US',
   continuous = false,
   interimResults = true,
+  handsFree = false,
+  wakeWord = 'jarvis',
+  onSpeechStart,
 }: UseVoiceRecognitionOptions) => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [supported, setSupported] = useState(true);
-  
+
   const recognitionRef = useRef<any>(null);
   const fullTranscriptRef = useRef('');
 
   const onCommandRef = useRef(onCommand);
-  useEffect(() => {
-    onCommandRef.current = onCommand;
-  }, [onCommand]);
+  const onSpeechStartRef = useRef(onSpeechStart);
+  const handsFreeRef = useRef(handsFree);
+  const manualStopRef = useRef(false);
+  useEffect(() => { onCommandRef.current = onCommand; }, [onCommand]);
+  useEffect(() => { onSpeechStartRef.current = onSpeechStart; }, [onSpeechStart]);
+  useEffect(() => { handsFreeRef.current = handsFree; }, [handsFree]);
 
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -33,9 +56,14 @@ export const useVoiceRecognition = ({
     }
 
     const recognition = new SpeechRecognition();
-    recognition.continuous = continuous;
+    // Hands-free needs continuous capture so the mic never auto-closes between commands.
+    recognition.continuous = continuous || handsFree;
     recognition.interimResults = interimResults;
     recognition.lang = lang;
+
+    recognition.onspeechstart = () => {
+      onSpeechStartRef.current?.();
+    };
 
     recognition.onresult = (event: any) => {
       let finalStr = '';
@@ -50,26 +78,51 @@ export const useVoiceRecognition = ({
         }
       }
 
+      // Hands-free: act on each finalized phrase that contains the wake word, then reset.
+      if (handsFreeRef.current) {
+        setTranscript(interimStr || fullTranscriptRef.current);
+        if (finalStr) {
+          const command = extractCommand(finalStr, wakeWord.toLowerCase());
+          if (command) {
+            onCommandRef.current(command);
+            fullTranscriptRef.current = '';
+            setTranscript('');
+          }
+        }
+        return;
+      }
+
       if (finalStr) {
         fullTranscriptRef.current += (fullTranscriptRef.current ? ' ' : '') + finalStr.trim();
       }
-
       const displayTranscript = fullTranscriptRef.current + (interimStr ? (fullTranscriptRef.current ? ' ' : '') + interimStr : '');
       setTranscript(displayTranscript);
     };
 
     recognition.onerror = (event: any) => {
-      console.error('Speech recognition error', event.error);
-      if (event.error !== 'no-speech') {
-         setIsListening(false);
+      if (event.error !== 'no-speech' && event.error !== 'aborted') {
+        console.error('Speech recognition error', event.error);
+        setIsListening(false);
       }
     };
 
     recognition.onend = () => {
+      // Hands-free keeps the mic alive: restart unless we stopped on purpose.
+      if (handsFreeRef.current && !manualStopRef.current) {
+        try {
+          recognition.start();
+          return;
+        } catch {
+          // Fall through to the normal stop path if restart fails.
+        }
+      }
+
       setIsListening(false);
-      const finalCommand = fullTranscriptRef.current.trim();
-      if (finalCommand) {
-        onCommandRef.current(finalCommand);
+      if (!handsFreeRef.current) {
+        const finalCommand = fullTranscriptRef.current.trim();
+        if (finalCommand) {
+          onCommandRef.current(finalCommand);
+        }
       }
       fullTranscriptRef.current = '';
       setTranscript('');
@@ -77,17 +130,27 @@ export const useVoiceRecognition = ({
 
     recognitionRef.current = recognition;
 
-    return () => {
-      if (recognitionRef.current) {
-        // Prevent onend from firing onCommand during unmount
-        recognitionRef.current.onend = null; 
-        recognitionRef.current.stop();
+    // Auto-start when hands-free is enabled.
+    if (handsFree) {
+      manualStopRef.current = false;
+      try {
+        recognition.start();
+        setIsListening(true);
+      } catch (e) {
+        console.error('Failed to start hands-free recognition', e);
       }
+    }
+
+    return () => {
+      manualStopRef.current = true;
+      recognition.onend = null; // Prevent onend from firing/restarting during unmount
+      recognition.onresult = null;
+      try { recognition.stop(); } catch { /* already stopped */ }
     };
-  }, [continuous, interimResults, lang]);
+  }, [continuous, interimResults, lang, handsFree, wakeWord]);
 
   const toggleListening = useCallback(() => {
-    if (!recognitionRef.current) return;
+    if (!recognitionRef.current || handsFreeRef.current) return; // hands-free manages itself
 
     if (isListening) {
       // Stopping will naturally trigger onend, which handles submitting the command

@@ -20,6 +20,7 @@ public class AiModelResponse {
     private String modelId;
     private String baseUrl;
     private boolean hasApiKey;
+    private String awsRegion;
     private BigDecimal temperature;
     private Integer maxTokens;
     private boolean isDefault;
@@ -37,6 +38,7 @@ public class AiModelResponse {
                 .modelId(model.getModelId())
                 .baseUrl(model.getBaseUrl())
                 .hasApiKey(model.getApiKey() != null && !model.getApiKey().isBlank())
+                .awsRegion(model.getAwsRegion())
                 .temperature(model.getTemperature())
                 .maxTokens(model.getMaxTokens())
                 .isDefault(model.isDefault())

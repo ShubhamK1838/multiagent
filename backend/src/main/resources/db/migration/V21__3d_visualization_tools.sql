@@ -1,6 +1,6 @@
 -- 3D visualization tools: network graph, globe, scatter plot
 
-INSERT INTO tool_definitions (id, name, description, parameters_schema, tool_type, handler_config, enabled, requires_confirmation, created_at, updated_at)
+INSERT INTO tool_definitions (id, name, description, parameters_schema, tool_type, handler_config, is_enabled, requires_confirmation, created_at, updated_at)
 VALUES
 (
   gen_random_uuid(),

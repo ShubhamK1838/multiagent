@@ -20,12 +20,17 @@ import { ProactiveAlertToast } from '../hud/ProactiveAlertToast';
 import { WorkflowPanel } from '../hud/WorkflowPanel';
 import { VizPanelHost } from '../hud/viz';
 import { useVizPanels } from '../../hooks/useVizPanels';
-import { proactiveModeApi } from '../../services/api';
+import { proactiveModeApi, settingsApi } from '../../services/api';
 import type { AgentEvent } from '../../types';
 import { GestureRegistryProvider, useGestureRegistry } from '../../contexts/GestureRegistryContext';
+import { ErrorBoundary } from '../shared/ErrorBoundary';
 import { NeuralPulseBackground } from '../hud/NeuralPulseBackground';
+import { ArcReactorCore } from '../hud/ArcReactorCore';
 import { DataStreamRibbon } from '../hud/DataStreamRibbon';
 import type { RibbonEvent } from '../hud/DataStreamRibbon';
+import { VoiceVisualizer } from '../hud/VoiceVisualizer';
+import { BootSequence } from '../hud/BootSequence';
+import { LiveCaptions } from '../hud/LiveCaptions';
 
 // Hex grid SVG background
 const HexBackground: React.FC = () => (
@@ -68,9 +73,29 @@ const CornerBrackets: React.FC = () => (
 );
 
 
+const HudCrashFallback: React.FC = () => (
+  <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/90 z-[200]">
+    <div className="text-cyan-400/80 font-mono text-sm tracking-[0.3em] uppercase">
+      HUD render fault
+    </div>
+    <div className="text-cyan-500/50 font-mono text-xs max-w-sm text-center leading-relaxed">
+      A panel failed to render and was isolated. Reload the core interface to continue.
+    </div>
+    <button
+      onClick={() => window.location.reload()}
+      className="px-4 py-1.5 rounded-full border border-cyan-500/40 text-cyan-300 font-mono text-[10px]
+                 uppercase tracking-widest hover:bg-cyan-500/10 transition-colors"
+    >
+      Reboot Core
+    </button>
+  </div>
+);
+
 export const JarvisHUDView: React.FC = () => (
   <GestureRegistryProvider>
-    <JarvisHUDContent />
+    <ErrorBoundary fallback={<HudCrashFallback />}>
+      <JarvisHUDContent />
+    </ErrorBoundary>
   </GestureRegistryProvider>
 );
 
@@ -83,7 +108,8 @@ const JarvisHUDContent: React.FC = () => {
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [gesturesEnabled, setGesturesEnabled] = useState(getBoolean('ui.gestures.enabled', true));
   const [ttsEnabled, setTtsEnabled] = useState(false);
-  const { speak, stop: stopTTS } = useTTS(ttsEnabled);
+  const [handsFree, setHandsFree] = useState(false);
+  const { speak, stop: stopTTS, speaking } = useTTS(ttsEnabled);
   const [annotations, setAnnotations] = useState<AIAnnotation[]>([]);
   const [isAiProcessing, setIsAiProcessing] = useState(false);
   const [canvasData, setCanvasData] = useState<string>('');
@@ -91,7 +117,10 @@ const JarvisHUDContent: React.FC = () => {
   const [injectedShape, setInjectedShape] = useState<any>(null);
   const [diagram, setDiagram] = useState<DiagramData | null>(null);
   const [proactiveEnabled, setProactiveEnabled] = useState(false);
+  const [vizMode, setVizMode] = useState(true);
   const [ribbons, setRibbons] = useState<RibbonEvent[]>([]);
+  const [captionText, setCaptionText] = useState('');
+  const [listening, setListening] = useState(false);
   const { panels: vizPanels, dispatch: vizDispatch, dismiss: vizDismiss } = useVizPanels();
   const commandBarRef = useRef<HTMLDivElement>(null);
 
@@ -108,9 +137,27 @@ const JarvisHUDContent: React.FC = () => {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Sync the proactive toggle with the backend's actual state on mount.
+  useEffect(() => {
+    proactiveModeApi.getStatus()
+      .then(s => setProactiveEnabled(s.enabled))
+      .catch(() => { /* backend may be offline; leave default */ });
+  }, []);
+
+  // Sync the auto-visualize toggle with the persisted backend setting on mount.
+  useEffect(() => {
+    settingsApi.getAll()
+      .then(all => {
+        const s = all.find(x => x.settingKey === 'ui.auto_visualize');
+        if (s) setVizMode(String(s.settingValue).toLowerCase() === 'true');
+      })
+      .catch(() => { /* backend may be offline; leave default */ });
+  }, []);
+
   const { sendMessage, streamContent, convMessages, thinking, sending } = useChat(conversationId);
 
   const lastSpokenCountRef = useRef(0);
+  const spokenConvRef = useRef<string | null>(null);
 
   const handleFrontendEvent = useCallback((eventName: string, payload: unknown) => {
     if (eventName === 'draw_ui_shape') {
@@ -142,14 +189,22 @@ const JarvisHUDContent: React.FC = () => {
     }
   });
 
-  // Speak each new final AI message
+  // Speak each new final AI message. When the conversation changes, sync the
+  // baseline to its existing history so we don't read stale messages aloud.
   useEffect(() => {
     const aiMessages = convMessages.filter(m => m.role === 'assistant');
+    if (spokenConvRef.current !== conversationId) {
+      spokenConvRef.current = conversationId ?? null;
+      lastSpokenCountRef.current = aiMessages.length;
+      return;
+    }
     if (!thinking && !sending && aiMessages.length > lastSpokenCountRef.current) {
       lastSpokenCountRef.current = aiMessages.length;
-      speak(aiMessages[aiMessages.length - 1]?.content ?? '');
+      const content = aiMessages[aiMessages.length - 1]?.content ?? '';
+      setCaptionText(content);
+      speak(content);
     }
-  }, [convMessages, thinking, sending, speak]);
+  }, [convMessages, thinking, sending, speak, conversationId]);
 
   // Track dragging physics (layout panels + registry panels)
   const dragState = useRef<{
@@ -319,6 +374,11 @@ const JarvisHUDContent: React.FC = () => {
     handleTextCommand(text);
   }, [handleTextCommand]);
 
+  // Barge-in: silence JARVIS the moment the user starts speaking.
+  const handleVoiceStart = useCallback(() => {
+    stopTTS();
+  }, [stopTTS]);
+
   const handleToggleProactive = useCallback(async () => {
     try {
       const result = await proactiveModeApi.toggle();
@@ -328,10 +388,25 @@ const JarvisHUDContent: React.FC = () => {
     }
   }, []);
 
+  // Toggle auto-visualize mode — optimistic flip + persist to backend so the
+  // agent's system prompt picks it up on the next turn.
+  const handleToggleViz = useCallback(async () => {
+    const next = !vizMode;
+    setVizMode(next);
+    try {
+      await settingsApi.update('ui.auto_visualize', String(next));
+    } catch (e) {
+      console.error('Failed to persist auto-visualize setting', e);
+      setVizMode(!next); // revert on failure
+    }
+  }, [vizMode]);
+
   const isCombat = theme === 'combat';
   const panels = layout.panels || {};
 
   const isGlobalProcessing = isAiProcessing || sending || thinking;
+  const coreState: 'idle' | 'thinking' | 'speaking' =
+    isGlobalProcessing ? 'thinking' : speaking ? 'speaking' : 'idle';
 
   return (
     <div
@@ -344,6 +419,12 @@ const JarvisHUDContent: React.FC = () => {
     >
       {/* Neural pulse background — activates when AI is thinking */}
       <NeuralPulseBackground isThinking={isGlobalProcessing} />
+
+      {/* Central arc reactor core — reacts to JARVIS state, sits behind panels */}
+      <ArcReactorCore state={coreState} combat={isCombat} />
+
+      {/* Audio-reactive radial waveform ringing the core while JARVIS speaks or listens */}
+      <VoiceVisualizer active={speaking || listening} />
 
       {/* Background effects */}
       <HexBackground />
@@ -444,7 +525,19 @@ const JarvisHUDContent: React.FC = () => {
         onToggleTTS={() => setTtsEnabled(p => !p)}
         proactiveEnabled={proactiveEnabled}
         onToggleProactive={handleToggleProactive}
+        vizMode={vizMode}
+        onToggleViz={handleToggleViz}
+        handsFree={handsFree}
+        onToggleHandsFree={() => setHandsFree(p => !p)}
+        onVoiceStart={handleVoiceStart}
+        onListeningChange={setListening}
       />
+
+      {/* Live subtitle captions of JARVIS's speech */}
+      <LiveCaptions text={captionText} active={speaking} />
+
+      {/* One-time boot-up sequence overlay */}
+      <BootSequence />
     </div>
   );
 };

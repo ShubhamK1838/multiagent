@@ -1,14 +1,32 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useVoiceRecognition } from '../../hooks/useVoiceRecognition';
+import { useNvidiaVoice } from '../../hooks/useNvidiaVoice';
 
 interface VoiceCommanderProps {
   onCommand: (text: string) => void;
   isProcessing?: boolean;
+  handsFree?: boolean;
+  onSpeechStart?: () => void;
+  onListeningChange?: (listening: boolean) => void;
 }
 
-export const VoiceCommander: React.FC<VoiceCommanderProps> = ({ onCommand, isProcessing }) => {
-  const { isListening, transcript, toggleListening, supported } = useVoiceRecognition({ onCommand });
+export const VoiceCommander: React.FC<VoiceCommanderProps> = ({ onCommand, isProcessing, handsFree, onSpeechStart, onListeningChange }) => {
+  // Hands-free wake word runs on the on-device browser engine (always-on, cheap).
+  // The manual mic button uses high-accuracy NVIDIA Whisper push-to-talk.
+  const browser = useVoiceRecognition({ onCommand, handsFree, onSpeechStart });
+  const nvidia = useNvidiaVoice({ onCommand, onListenStart: onSpeechStart });
+
+  const isListening = handsFree ? browser.isListening : nvidia.isListening;
+
+  useEffect(() => {
+    onListeningChange?.(isListening);
+  }, [isListening, onListeningChange]);
+
+  const transcript = handsFree ? browser.transcript : nvidia.transcript;
+  const toggleListening = handsFree ? browser.toggleListening : nvidia.toggleListening;
+  const supported = handsFree ? browser.supported : nvidia.supported;
+  const busy = isProcessing || (!handsFree && nvidia.isTranscribing);
 
   if (!supported) {
     return null; // Don't render if not supported
@@ -42,9 +60,9 @@ export const VoiceCommander: React.FC<VoiceCommanderProps> = ({ onCommand, isPro
             className="absolute inset-0 rounded-full bg-red-500/30"
           />
         )}
-        {isProcessing ? (
-           <motion.div 
-             animate={{ rotate: 360 }} 
+        {busy ? (
+           <motion.div
+             animate={{ rotate: 360 }}
              transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
              className="w-3 h-3 border-t border-r border-violet-400 rounded-full"
            />

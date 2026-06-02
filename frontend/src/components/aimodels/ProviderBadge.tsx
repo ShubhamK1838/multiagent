@@ -1,6 +1,6 @@
 import React from 'react'
 import { clsx } from 'clsx'
-import { Cloud, HardDrive } from 'lucide-react'
+import { Cloud, HardDrive, Server } from 'lucide-react'
 import type { AiModelProvider } from '../../types'
 
 interface ProviderBadgeProps {
@@ -9,8 +9,9 @@ interface ProviderBadgeProps {
 }
 
 const STYLES: Record<AiModelProvider, { label: string; icon: React.ElementType; cls: string }> = {
-  OPENAI: { label: 'OpenAI-compat', icon: Cloud, cls: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' },
-  OLLAMA: { label: 'Ollama',        icon: HardDrive, cls: 'bg-blue-500/10 text-blue-300 border-blue-500/30' },
+  OPENAI:  { label: 'OpenAI-compat', icon: Cloud,     cls: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' },
+  OLLAMA:  { label: 'Ollama',        icon: HardDrive, cls: 'bg-blue-500/10 text-blue-300 border-blue-500/30' },
+  BEDROCK: { label: 'AWS Bedrock',   icon: Server,    cls: 'bg-amber-500/10 text-amber-300 border-amber-500/30' },
 }
 
 export function ProviderBadge({ provider, size = 'md' }: ProviderBadgeProps) {

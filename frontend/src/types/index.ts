@@ -72,7 +72,7 @@ export interface FormRequest {
   createdAt: string
 }
 
-export type AiModelProvider = 'OPENAI' | 'OLLAMA'
+export type AiModelProvider = 'OPENAI' | 'OLLAMA' | 'BEDROCK'
 
 export interface AiModel {
   id: string
@@ -81,6 +81,7 @@ export interface AiModel {
   modelId: string
   baseUrl: string | null
   hasApiKey: boolean
+  awsRegion: string | null
   temperature: number
   maxTokens: number
   default: boolean
@@ -97,6 +98,7 @@ export interface AiModelInput {
   modelId: string
   baseUrl?: string | null
   apiKey?: string | null
+  awsRegion?: string | null
   temperature: number
   maxTokens: number
   isEnabled?: boolean
@@ -203,6 +205,62 @@ export interface ScatterData  {
   title: string
   xLabel: string; yLabel: string; zLabel: string
   points: ScatterPoint[]
+}
+
+// ── Additional visualization data types ──────────────────────────────────────
+
+export interface GaugeItem {
+  label: string
+  value: number
+  min?: number
+  max?: number
+  unit?: string
+  color?: string
+}
+export interface GaugeData {
+  title: string
+  gauges: GaugeItem[]
+}
+
+export interface RadarSeries { label: string; values: number[]; color?: string }
+export interface RadarData {
+  title: string
+  axes: string[]            // axis labels
+  series: RadarSeries[]     // each series.values length must match axes.length
+  max?: number              // optional scale maximum (defaults to data max)
+}
+
+export type Model3DShape =
+  | 'cube' | 'sphere' | 'torus' | 'cone'
+  | 'cylinder' | 'dodecahedron' | 'icosahedron' | 'torusknot'
+export interface Model3DData {
+  title: string
+  shape: Model3DShape
+  label?: string
+  color?: string
+  wireframe?: boolean
+  spin?: number             // rotation speed multiplier (default 1)
+}
+
+export interface TimelineEvent {
+  time: string              // label, e.g. a date or step number
+  title: string
+  description?: string
+  status?: 'done' | 'active' | 'pending'
+}
+export interface TimelineData {
+  title: string
+  events: TimelineEvent[]
+}
+
+export interface AnswerSection { heading?: string; body: string }
+export interface AnswerHighlight { label: string; value: string }
+export interface AnswerCardData {
+  title: string
+  summary: string
+  sections?: AnswerSection[]
+  highlights?: AnswerHighlight[]   // small stat callouts
+  tags?: string[]
 }
 
 export interface ToolExecution {

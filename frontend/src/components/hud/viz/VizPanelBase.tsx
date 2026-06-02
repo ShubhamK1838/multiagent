@@ -99,6 +99,8 @@ export const VizPanelBase: React.FC<VizPanelBaseProps> = ({
   return (
     <motion.div
       ref={ref}
+      id={id}
+      data-viz-panel={id}
       drag
       dragMomentum={false}
       variants={materializeVariants}

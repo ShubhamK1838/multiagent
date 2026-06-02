@@ -16,10 +16,20 @@
     <properties>
         <java.version>21</java.version>
         <spring-ai.version>1.0.0</spring-ai.version>
+        <aws-sdk.version>2.31.0</aws-sdk.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <!-- Pin AWS SDK first so it overrides Spring AI's transitive version.
+                 2.31+ is required for Bedrock bearer-token auth (AWS_BEARER_TOKEN_BEDROCK). -->
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${aws-sdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.springframework.ai</groupId>
                 <artifactId>spring-ai-bom</artifactId>
@@ -57,6 +67,10 @@
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-model-ollama</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-bedrock-converse</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.ai</groupId>

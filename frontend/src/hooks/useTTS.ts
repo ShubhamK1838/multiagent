@@ -1,17 +1,23 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export function useTTS(enabled: boolean) {
   const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
+  const [speaking, setSpeaking] = useState(false);
   const supported = typeof window !== 'undefined' && 'speechSynthesis' in window;
 
   useEffect(() => {
     if (!supported) return;
     const loadVoice = () => {
       const voices = window.speechSynthesis.getVoices();
+      if (voices.length === 0) return;
+      // Prefer a deep British-male voice for a JARVIS feel, then any en-GB,
+      // then any English voice, then whatever is available.
+      const jarvisName = /jarvis|daniel|george|arthur|oliver|ryan|google uk english male|alex|david/i;
       voiceRef.current =
-        voices.find(v => /daniel|alex|david/i.test(v.name)) ??
-        voices.find(v => v.lang.startsWith('en') && !v.localService === false) ??
+        voices.find(v => jarvisName.test(v.name)) ??
+        voices.find(v => v.lang === 'en-GB') ??
         voices.find(v => v.lang.startsWith('en')) ??
+        voices[0] ??
         null;
     };
     loadVoice();
@@ -30,6 +36,9 @@ export function useTTS(enabled: boolean) {
       utterance.pitch = 0.85;
       utterance.volume = 1.0;
       if (voiceRef.current) utterance.voice = voiceRef.current;
+      utterance.onstart = () => setSpeaking(true);
+      utterance.onend = () => setSpeaking(false);
+      utterance.onerror = () => setSpeaking(false);
       window.speechSynthesis.speak(utterance);
     },
     [supported, enabled]
@@ -37,7 +46,8 @@ export function useTTS(enabled: boolean) {
 
   const stop = useCallback(() => {
     if (supported) window.speechSynthesis.cancel();
+    setSpeaking(false);
   }, [supported]);
 
-  return { speak, stop, supported };
+  return { speak, stop, speaking, supported };
 }
