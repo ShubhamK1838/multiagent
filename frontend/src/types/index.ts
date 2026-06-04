@@ -348,3 +348,53 @@ export interface ToolExecution {
   durationMs?: number
   executedAt: string
 }
+
+// ── Conversation search ───────────────────────────────────────────────────────
+
+export interface SearchResult {
+  messageId: string
+  conversationId: string
+  conversationTitle: string
+  role: string
+  snippet: string
+  matchType: 'keyword' | 'semantic'
+  createdAt: string
+}
+
+// ── Token & cost usage ────────────────────────────────────────────────────────
+
+export interface UsageTotals {
+  promptTokens: number
+  completionTokens: number
+  totalTokens: number
+  totalCost: number
+  calls: number
+}
+
+export interface ModelUsage {
+  modelName: string
+  provider: string
+  totalTokens: number
+  totalCost: number
+  calls: number
+}
+
+export interface DailyUsage {
+  day: string
+  totalTokens: number
+  totalCost: number
+}
+
+export interface ConversationUsage {
+  conversationId: string | null
+  title: string
+  totalTokens: number
+  totalCost: number
+  calls: number
+}
+
+export interface UsageSummary {
+  totals: UsageTotals
+  byModel: ModelUsage[]
+  daily: DailyUsage[]
+}

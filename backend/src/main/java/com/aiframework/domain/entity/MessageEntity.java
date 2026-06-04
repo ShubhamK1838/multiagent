@@ -40,6 +40,10 @@ public class MessageEntity {
     @Column(columnDefinition = "jsonb")
     private Map<String, Object> metadata;
 
+    /** Semantic-search embedding (nomic-embed-text, 768 dims). Populated asynchronously after save. */
+    @Column(columnDefinition = "vector(768)")
+    private float[] embedding;
+
     @Column(nullable = false)
     private Instant createdAt;
 

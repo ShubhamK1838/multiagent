@@ -4,6 +4,7 @@ import com.aiframework.domain.entity.Conversation;
 import com.aiframework.domain.entity.MessageEntity;
 import com.aiframework.domain.repository.ConversationRepository;
 import com.aiframework.domain.repository.MessageRepository;
+import com.aiframework.service.search.ConversationSearchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
@@ -21,6 +22,7 @@ public class ConversationService {
 
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
+    private final ConversationSearchService conversationSearchService;
 
     @Transactional
     public Conversation createConversation(String title) {
@@ -39,7 +41,10 @@ public class ConversationService {
                 .role(role)
                 .content(content)
                 .build();
-        return messageRepository.save(message);
+        MessageEntity saved = messageRepository.save(message);
+        // Fire-and-forget: make the message semantically searchable (Feature: Conversation Search).
+        conversationSearchService.embedMessage(saved.getId(), saved.getContent());
+        return saved;
     }
 
     private void ensureConversationExists(UUID conversationId) {

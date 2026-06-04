@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Conversation, ToolDefinition, SystemSetting, FormRequest, AiModel, AiModelInput, ToolExecution, ConversationSummary, WorkflowWithSteps, Workflow, AgentDefinition, AgentDefinitionInput } from '../types'
+import type { Conversation, ToolDefinition, SystemSetting, FormRequest, AiModel, AiModelInput, ToolExecution, ConversationSummary, WorkflowWithSteps, Workflow, AgentDefinition, AgentDefinitionInput, SearchResult, UsageSummary, ConversationUsage } from '../types'
 
 const api = axios.create({ baseURL: '/api/v1' })
 
@@ -21,6 +21,15 @@ export const chatApi = {
 
   deleteConversation: (conversationId: string) =>
     api.delete(`/chat/conversations/${conversationId}`).then(r => r.data),
+
+  search: (q: string, limit = 20) =>
+    api.get<SearchResult[]>('/chat/search', { params: { q, limit } }).then(r => r.data),
+}
+
+export const usageApi = {
+  summary: () => api.get<UsageSummary>('/usage/summary').then(r => r.data),
+  byConversation: (limit = 50) =>
+    api.get<ConversationUsage[]>('/usage/by-conversation', { params: { limit } }).then(r => r.data),
 }
 
 export const toolApi = {

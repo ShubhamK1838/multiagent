@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { clsx } from 'clsx'
-import { Plus, Trash2, Radio } from 'lucide-react'
+import { Plus, Trash2, Radio, Search, X, Loader2 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { useConversations } from '../../hooks/useConversations'
+import { useConversationSearch } from '../../hooks/useConversationSearch'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import type { Conversation } from '../../types'
 
@@ -13,8 +14,11 @@ interface SidebarProps {
 
 export function Sidebar({ onNewChat }: SidebarProps) {
   const { conversations, activeConversationId, setActiveConversation, deleteConversation } = useConversations()
+  const { query, setQuery, results, loading: searching, clear } = useConversationSearch()
   const [pendingDelete, setPendingDelete] = useState<Conversation | null>(null)
   const [deleting, setDeleting] = useState(false)
+
+  const searchActive = query.trim().length > 0
 
   const askDelete = (e: React.MouseEvent, conv: Conversation) => {
     e.stopPropagation()
@@ -70,7 +74,58 @@ export function Sidebar({ onNewChat }: SidebarProps) {
         </motion.button>
       </div>
 
-      {/* Conversation list */}
+      {/* Search */}
+      <div className="px-2 pb-2">
+        <div className="relative">
+          <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'rgba(0,212,255,0.4)' }} />
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="SEARCH MISSIONS…"
+            className="w-full pl-7 pr-7 py-1.5 text-[10px] font-mono tracking-widest bg-transparent outline-none placeholder:text-cyan-900"
+            style={{ color: 'rgba(0,212,255,0.8)', border: '1px solid rgba(0,212,255,0.15)' }}
+          />
+          {searchActive && (
+            <button onClick={clear} className="absolute right-2 top-1/2 -translate-y-1/2" style={{ color: 'rgba(0,212,255,0.4)' }}>
+              {searching ? <Loader2 size={11} className="animate-spin" /> : <X size={12} />}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Search results */}
+      {searchActive ? (
+        <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-1">
+          {results.map(r => (
+            <button
+              key={r.messageId}
+              onClick={() => setActiveConversation(r.conversationId)}
+              className="w-full text-left px-2.5 py-2 transition-colors hover:bg-cyan-500/5"
+              style={{ borderLeft: '2px solid rgba(0,212,255,0.2)' }}
+            >
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <span className="font-mono text-[8px] uppercase tracking-wider px-1 rounded"
+                  style={{
+                    color: r.matchType === 'semantic' ? '#a855f7' : '#00d4ff',
+                    background: r.matchType === 'semantic' ? 'rgba(168,85,247,0.1)' : 'rgba(0,212,255,0.1)',
+                  }}>
+                  {r.matchType}
+                </span>
+                <span className="truncate font-mono text-[10px] text-cyan-400 flex-1">
+                  {r.conversationTitle || 'UNTITLED'}
+                </span>
+              </div>
+              <p className="text-[10px] text-cyan-800 leading-snug line-clamp-2">{r.snippet}</p>
+            </button>
+          ))}
+          {!searching && results.length === 0 && (
+            <p className="text-[10px] font-mono text-center py-8 tracking-widest" style={{ color: 'rgba(0,212,255,0.2)' }}>
+              NO MATCHES
+            </p>
+          )}
+        </div>
+      ) : (
+      /* Conversation list */
       <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-0.5">
         <AnimatePresence initial={false}>
           {conversations.map((conv, idx) => {
@@ -136,6 +191,7 @@ export function Sidebar({ onNewChat }: SidebarProps) {
           </p>
         )}
       </div>
+      )}
 
       {/* Footer */}
       <div className="px-4 py-2.5 font-mono text-[9px] tracking-widest"

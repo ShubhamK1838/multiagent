@@ -6,6 +6,8 @@ import com.aiframework.core.event.EventBus;
 import com.aiframework.domain.entity.Conversation;
 import com.aiframework.service.ConversationService;
 import com.aiframework.service.proactive.ActiveConversationTracker;
+import com.aiframework.service.search.ConversationSearchService;
+import com.aiframework.service.search.ConversationSearchService.SearchResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +35,7 @@ public class ChatController {
     private final EventBus eventBus;
     private final ObjectMapper objectMapper;
     private final ActiveConversationTracker activeConversationTracker;
+    private final ConversationSearchService conversationSearchService;
 
     @PostMapping("/conversations")
     public Conversation createConversation(@RequestBody(required = false) Map<String, String> body) {
@@ -50,6 +53,19 @@ public class ChatController {
         UUID convId = UUID.fromString(conversationId);
         conversationService.deleteConversation(convId);
         return Map.of("status", "deleted", "conversationId", conversationId);
+    }
+
+    @GetMapping("/search")
+    public List<SearchResult> search(@RequestParam("q") String query,
+                                     @RequestParam(value = "limit", defaultValue = "20") int limit) {
+        return conversationSearchService.search(query, limit);
+    }
+
+    @PostMapping("/search/backfill")
+    public Map<String, Object> backfillEmbeddings(
+            @RequestParam(value = "batchSize", defaultValue = "100") int batchSize) {
+        int count = conversationSearchService.backfillAll(batchSize);
+        return Map.of("embedded", count);
     }
 
     @GetMapping("/conversations/{conversationId}/messages")

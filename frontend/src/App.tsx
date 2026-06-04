@@ -11,6 +11,7 @@ import { AiModelsPanel } from './components/aimodels/AiModelsPanel'
 import { AgentRolesPanel } from './components/agents/AgentRolesPanel'
 import { FormModal } from './components/forms/FormModal'
 import { MemoryPanel } from './components/memory/MemoryPanel'
+import { UsageDashboard } from './components/usage/UsageDashboard'
 import { useConversations } from './hooks/useConversations'
 import { useUiSettings } from './hooks/useUiSettings'
 import { ThemeProvider } from './components/shared/ThemeProvider'
@@ -83,6 +84,7 @@ function MainApp() {
                 {activeView === 'agents'   && <AgentRolesPanel />}
                 {activeView === 'tools'    && <ToolManager />}
                 {activeView === 'memory'   && <MemoryPanel />}
+                {activeView === 'usage'    && <UsageDashboard />}
                 {activeView === 'settings' && <SettingsPanel />}
                 {activeView === 'rag'      && <RAGPanel />}
                 {activeView === 'hud'      && <JarvisHUDView />}

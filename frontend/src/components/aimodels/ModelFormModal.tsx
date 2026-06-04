@@ -21,6 +21,8 @@ interface FormState {
   maxTokens: number
   enabled: boolean
   description: string
+  costPerMillionInputTokens: string
+  costPerMillionOutputTokens: string
 }
 
 const EMPTY: FormState = {
@@ -34,6 +36,13 @@ const EMPTY: FormState = {
   maxTokens: 4096,
   enabled: true,
   description: '',
+  costPerMillionInputTokens: '',
+  costPerMillionOutputTokens: '',
+}
+
+function optStr(options: Record<string, unknown> | undefined, key: string): string {
+  const v = options?.[key]
+  return v == null ? '' : String(v)
 }
 
 export function ModelFormModal({ open, editing, onClose, onSubmit }: ModelFormModalProps) {
@@ -50,6 +59,8 @@ export function ModelFormModal({ open, editing, onClose, onSubmit }: ModelFormMo
       maxTokens: editing.maxTokens,
       enabled: editing.enabled,
       description: editing.description ?? '',
+      costPerMillionInputTokens: optStr(editing.options, 'costPerMillionInputTokens'),
+      costPerMillionOutputTokens: optStr(editing.options, 'costPerMillionOutputTokens'),
     }
   }, [editing])
 
@@ -75,6 +86,16 @@ export function ModelFormModal({ open, editing, onClose, onSubmit }: ModelFormMo
     setSubmitting(true)
     setError(null)
     try {
+      // Preserve any existing options and merge in pricing (omit keys when left blank).
+      const options: Record<string, unknown> = { ...(editing?.options ?? {}) }
+      const setOrDelete = (key: string, raw: string) => {
+        const n = Number(raw)
+        if (raw.trim() !== '' && Number.isFinite(n)) options[key] = n
+        else delete options[key]
+      }
+      setOrDelete('costPerMillionInputTokens', state.costPerMillionInputTokens)
+      setOrDelete('costPerMillionOutputTokens', state.costPerMillionOutputTokens)
+
       const payload: AiModelInput = {
         name: state.name.trim(),
         provider: state.provider,
@@ -84,6 +105,7 @@ export function ModelFormModal({ open, editing, onClose, onSubmit }: ModelFormMo
         maxTokens: state.maxTokens,
         isEnabled: state.enabled,
         description: state.description.trim() || null,
+        options,
       }
       if (state.provider === 'OPENAI' && state.apiKey.trim()) payload.apiKey = state.apiKey.trim()
       if (state.provider === 'BEDROCK') payload.awsRegion = state.awsRegion.trim()
@@ -256,6 +278,33 @@ export function ModelFormModal({ open, editing, onClose, onSubmit }: ModelFormMo
               className="input font-mono"
               value={state.maxTokens}
               onChange={e => update('maxTokens', Number(e.target.value) || 0)}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="label block mb-1.5">
+              Input price <span className="text-gray-600 normal-case">— $ / 1M tokens</span>
+            </label>
+            <input
+              type="number" min={0} step="0.01"
+              className="input font-mono"
+              value={state.costPerMillionInputTokens}
+              onChange={e => update('costPerMillionInputTokens', e.target.value)}
+              placeholder="e.g. 2.50"
+            />
+          </div>
+          <div>
+            <label className="label block mb-1.5">
+              Output price <span className="text-gray-600 normal-case">— $ / 1M tokens</span>
+            </label>
+            <input
+              type="number" min={0} step="0.01"
+              className="input font-mono"
+              value={state.costPerMillionOutputTokens}
+              onChange={e => update('costPerMillionOutputTokens', e.target.value)}
+              placeholder="e.g. 10.00"
             />
           </div>
         </div>
