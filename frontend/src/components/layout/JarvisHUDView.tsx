@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { DiagnosticsHUD } from '../DiagnosticsHUD';
+import { DiagnosticsHUD } from '../diagnostics/DiagnosticsHUD';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useHudLayout } from '../../hooks/useHudLayout';
 import { DraggablePanel } from './DraggablePanel';

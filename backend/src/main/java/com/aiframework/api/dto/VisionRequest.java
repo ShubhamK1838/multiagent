@@ -1,4 +1,4 @@
-package com.aiframework.controller.dto;
+package com.aiframework.api.dto;
 
 import lombok.Data;
 

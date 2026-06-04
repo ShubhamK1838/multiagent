@@ -1,6 +1,6 @@
-package com.aiframework.controller;
+package com.aiframework.api;
 
-import com.aiframework.controller.dto.VisionRequest;
+import com.aiframework.api.dto.VisionRequest;
 import com.aiframework.service.ai.VisionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

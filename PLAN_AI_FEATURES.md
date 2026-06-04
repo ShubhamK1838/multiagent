@@ -1,7 +1,12 @@
 # AI Features Implementation Plan
 
+> **Status:** Historical design doc. The features below (Session Memory · Proactive
+> Mode · Saved Workflows) have since been implemented and merged. Kept for context
+> and as the source of the codebase conventions. For setup and an up-to-date
+> overview, see [`README.md`](./README.md).
+
 > Features: Session Memory · Proactive Mode · Saved Workflows  
-> Current Flyway version: V16  
+> Flyway version when this plan was written: V16 (current schema is now V31)  
 > Stack: Spring Boot 3.2.5 · PostgreSQL · React + TypeScript · Zustand · SSE
 
 ---
