@@ -3,16 +3,13 @@ import { AnimatePresence } from 'framer-motion';
 import { DiagnosticsHUD } from '../DiagnosticsHUD';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useHudLayout } from '../../hooks/useHudLayout';
-import { useUiSettings } from '../../hooks/useUiSettings';
 import { DraggablePanel } from './DraggablePanel';
-import { GestureCanvas, AIAnnotation } from '../hud/GestureCanvas';
-import type { GestureType } from '../../hooks/useWebcamGestures';
 import { HudControlBar } from '../hud/HudControlBar';
 import { useChat } from '../../hooks/useChat';
 import { useChatStore } from '../../store/chatStore';
 import { useConversations } from '../../hooks/useConversations';
 import { useSSE } from '../../hooks/useSSE';
-import { useTTS } from '../../hooks/useTTS';
+import { useNeuralTTS } from '../../hooks/useNeuralTTS';
 import { HudMessageFeed } from '../hud/HudMessageFeed';
 import { DiagramPanel } from '../hud/DiagramPanel';
 import type { DiagramData } from '../hud/DiagramPanel';
@@ -20,9 +17,11 @@ import { ProactiveAlertToast } from '../hud/ProactiveAlertToast';
 import { WorkflowPanel } from '../hud/WorkflowPanel';
 import { VizPanelHost } from '../hud/viz';
 import { useVizPanels } from '../../hooks/useVizPanels';
-import { proactiveModeApi, settingsApi } from '../../services/api';
+import { AgentSwarmPanel } from '../hud/AgentSwarmPanel';
+import { useAgentSwarm } from '../../hooks/useAgentSwarm';
+import { chatApi, proactiveModeApi, settingsApi } from '../../services/api';
 import type { AgentEvent } from '../../types';
-import { GestureRegistryProvider, useGestureRegistry } from '../../contexts/GestureRegistryContext';
+import { GestureRegistryProvider } from '../../contexts/GestureRegistryContext';
 import { ErrorBoundary } from '../shared/ErrorBoundary';
 import { NeuralPulseBackground } from '../hud/NeuralPulseBackground';
 import { ArcReactorCore } from '../hud/ArcReactorCore';
@@ -91,6 +90,17 @@ const HudCrashFallback: React.FC = () => (
   </div>
 );
 
+// Short acknowledgments spoken the instant a turn starts, to kill dead-air while the model works.
+const ACK_PHRASES = ['On it.', 'Right away, sir.', 'Working on it.', 'One moment.', 'Of course, sir.'];
+const pickAck = () => ACK_PHRASES[Math.floor(Math.random() * ACK_PHRASES.length)];
+
+// Index just past the last sentence-ending boundary, so we only speak complete sentences while
+// the answer is still streaming. Returns 0 when no complete sentence is present yet.
+function lastSentenceBoundary(text: string): number {
+  const m = text.match(/[\s\S]*[.!?\n]/);
+  return m ? m[0].length : 0;
+}
+
 export const JarvisHUDView: React.FC = () => (
   <GestureRegistryProvider>
     <ErrorBoundary fallback={<HudCrashFallback />}>
@@ -100,28 +110,22 @@ export const JarvisHUDView: React.FC = () => (
 );
 
 const JarvisHUDContent: React.FC = () => {
-  const { registry } = useGestureRegistry();
   const { theme } = useTheme();
-  const { layout, updatePanelPosition, updatePanelSize, togglePanelVisibility, bringToFront, resetLayout } = useHudLayout();
-  const { getBoolean } = useUiSettings();
-  
-  const [isDrawingMode, setIsDrawingMode] = useState(false);
-  const [gesturesEnabled, setGesturesEnabled] = useState(getBoolean('ui.gestures.enabled', true));
+  const { layout, updatePanelPosition, togglePanelVisibility, bringToFront, resetLayout } = useHudLayout();
+
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [handsFree, setHandsFree] = useState(false);
-  const { speak, stop: stopTTS, speaking } = useTTS(ttsEnabled);
-  const [annotations, setAnnotations] = useState<AIAnnotation[]>([]);
-  const [isAiProcessing, setIsAiProcessing] = useState(false);
-  const [canvasData, setCanvasData] = useState<string>('');
-  const [clearCount, setClearCount] = useState(0);
-  const [injectedShape, setInjectedShape] = useState<any>(null);
+  const { enqueue: enqueueTTS, stop: stopTTS, speaking } = useNeuralTTS(ttsEnabled);
   const [diagram, setDiagram] = useState<DiagramData | null>(null);
   const [proactiveEnabled, setProactiveEnabled] = useState(false);
   const [vizMode, setVizMode] = useState(true);
+  const [swarmMode, setSwarmMode] = useState(false);
+  const [swarmDismissed, setSwarmDismissed] = useState(false);
   const [ribbons, setRibbons] = useState<RibbonEvent[]>([]);
   const [captionText, setCaptionText] = useState('');
   const [listening, setListening] = useState(false);
   const { panels: vizPanels, dispatch: vizDispatch, dismiss: vizDismiss } = useVizPanels();
+  const { swarm, handleEvent: handleSwarmEvent } = useAgentSwarm();
   const commandBarRef = useRef<HTMLDivElement>(null);
 
   const conversationId = useChatStore(state => state.activeConversationId);
@@ -133,7 +137,7 @@ const JarvisHUDContent: React.FC = () => {
   // so the HUD is always ready to use without requiring a chat-tab visit first.
   useEffect(() => {
     if (!conversationId) {
-      createConversation('J.A.R.V.I.S.');
+      createConversation('J.A.R.V.I.S.').catch(() => { /* will retry on first command */ });
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -144,12 +148,14 @@ const JarvisHUDContent: React.FC = () => {
       .catch(() => { /* backend may be offline; leave default */ });
   }, []);
 
-  // Sync the auto-visualize toggle with the persisted backend setting on mount.
+  // Sync the auto-visualize and multi-agent toggles with persisted backend settings on mount.
   useEffect(() => {
     settingsApi.getAll()
       .then(all => {
-        const s = all.find(x => x.settingKey === 'ui.auto_visualize');
-        if (s) setVizMode(String(s.settingValue).toLowerCase() === 'true');
+        const viz = all.find(x => x.settingKey === 'ui.auto_visualize');
+        if (viz) setVizMode(String(viz.settingValue).toLowerCase() === 'true');
+        const multi = all.find(x => x.settingKey === 'agent.multi.enabled');
+        if (multi) setSwarmMode(String(multi.settingValue).toLowerCase() === 'true');
       })
       .catch(() => { /* backend may be offline; leave default */ });
   }, []);
@@ -158,12 +164,11 @@ const JarvisHUDContent: React.FC = () => {
 
   const lastSpokenCountRef = useRef(0);
   const spokenConvRef = useRef<string | null>(null);
+  // How many chars of the current answer have already been spoken (streaming TTS).
+  const spokenLenRef = useRef(0);
 
   const handleFrontendEvent = useCallback((eventName: string, payload: unknown) => {
-    if (eventName === 'draw_ui_shape') {
-      setInjectedShape(payload);
-      setTimeout(() => setInjectedShape(null), 100);
-    } else if (eventName === 'render_diagram') {
+    if (eventName === 'render_diagram') {
       setDiagram(payload as DiagramData);
     } else {
       vizDispatch(eventName, payload);
@@ -171,6 +176,22 @@ const JarvisHUDContent: React.FC = () => {
   }, [vizDispatch]);
 
   useSSE(conversationId, (event: AgentEvent) => {
+    // Feed multi-agent ("swarm") observability state.
+    handleSwarmEvent(event);
+    if (event.type === 'AGENT_START') {
+      setSwarmDismissed(false);
+      spokenLenRef.current = 0;
+      // Instant verbal acknowledgment — kills the dead-air while the model spins up.
+      if (ttsEnabled) {
+        stopTTS();
+        enqueueTTS(pickAck());
+      }
+    }
+    // Speak proactive alerts aloud as well as showing the toast.
+    if (event.type === 'PROACTIVE_ALERT' && ttsEnabled && event.content) {
+      enqueueTTS(event.content);
+    }
+
     // Spawn a data stream ribbon on every tool call
     if (event.type === 'TOOL_CALL') {
       const fromEl = commandBarRef.current
@@ -189,192 +210,71 @@ const JarvisHUDContent: React.FC = () => {
     }
   });
 
-  // Speak each new final AI message. When the conversation changes, sync the
-  // baseline to its existing history so we don't read stale messages aloud.
+  // Streaming TTS: speak complete sentences as the answer streams in, so JARVIS starts talking
+  // almost immediately instead of waiting for the whole response.
+  useEffect(() => {
+    if (!ttsEnabled || !streamContent) return;
+    setCaptionText(streamContent);
+    const boundary = lastSentenceBoundary(streamContent);
+    if (boundary > spokenLenRef.current) {
+      const chunk = streamContent.slice(spokenLenRef.current, boundary);
+      if (chunk.trim()) enqueueTTS(chunk);
+      spokenLenRef.current = boundary;
+    }
+  }, [streamContent, ttsEnabled, enqueueTTS]);
+
+  // When a final AI message lands, speak only the tail that streaming didn't already cover (and
+  // the whole thing for non-streamed turns). On conversation switch, sync the baseline so we
+  // don't read stale history aloud.
   useEffect(() => {
     const aiMessages = convMessages.filter(m => m.role === 'assistant');
     if (spokenConvRef.current !== conversationId) {
       spokenConvRef.current = conversationId ?? null;
       lastSpokenCountRef.current = aiMessages.length;
+      spokenLenRef.current = 0;
       return;
     }
     if (!thinking && !sending && aiMessages.length > lastSpokenCountRef.current) {
       lastSpokenCountRef.current = aiMessages.length;
       const content = aiMessages[aiMessages.length - 1]?.content ?? '';
       setCaptionText(content);
-      speak(content);
+      const remainder = content.slice(spokenLenRef.current);
+      if (ttsEnabled && remainder.trim()) enqueueTTS(remainder);
+      spokenLenRef.current = 0; // reset for the next turn
     }
-  }, [convMessages, thinking, sending, speak, conversationId]);
+  }, [convMessages, thinking, sending, enqueueTTS, ttsEnabled, conversationId]);
 
-  // Track dragging physics (layout panels + registry panels)
-  const dragState = useRef<{
-    panelId: string | null,
-    registryId: string | null,
-    offsetX: number,
-    offsetY: number,
-    initialWidth: number,
-    initialHeight: number,
-    lastX: number,
-    lastY: number,
-  }>({ panelId: null, registryId: null, offsetX: 0, offsetY: 0, initialWidth: 0, initialHeight: 0, lastX: 0, lastY: 0 });
+  // Submit a command (from the text bar or voice). Guarantees an active conversation first, so a
+  // recognized command is never silently dropped because the HUD hadn't created one yet (or the
+  // backend was briefly unreachable on mount).
+  const submitCommand = useCallback(async (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
 
-  // Handle webcam gestures
-  const handleGesture = useCallback((gesture: GestureType) => {
-    switch (gesture) {
-      case 'SWIPE_LEFT':
-        if (layout.panels.diagnostics?.visible) togglePanelVisibility('diagnostics');
-        break;
-      case 'SWIPE_RIGHT':
-        if (!layout.panels.diagnostics?.visible) togglePanelVisibility('diagnostics');
-        break;
-      case 'OPEN_PALM':
-        if (!layout.panels.diagnostics?.visible) togglePanelVisibility('diagnostics');
-        break;
-      case 'TWO_HANDS_EXPAND':
-        resetLayout();
-        break;
-      case 'PINCH_DELETE':
-        stopTTS();
-        break;
-    }
-  }, [layout.panels, togglePanelVisibility, resetLayout, stopTTS]);
-
-  // Handle panel physical dragging via webcam
-  const handlePanelDrag = useCallback((x: number, y: number) => {
-    if (!dragState.current.panelId && !dragState.current.registryId) {
-      // Check layout panels first
-      for (const [id, panel] of Object.entries(layout.panels || {})) {
-        if (!panel?.visible) continue;
-        if (x >= panel.x && x <= panel.x + panel.width && y >= panel.y && y <= panel.y + panel.height) {
-          dragState.current.panelId = id;
-          dragState.current.offsetX = panel.x - x;
-          dragState.current.offsetY = panel.y - y;
-          dragState.current.initialWidth = panel.width;
-          dragState.current.initialHeight = panel.height;
-          bringToFront(id);
-          break;
-        }
-      }
-      // Then check gesture registry (viz panels, diagram, workflow)
-      if (!dragState.current.panelId) {
-        for (const [id, entry] of registry.current.entries()) {
-          const rect = entry.getRect();
-          if (rect && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
-            dragState.current.registryId = id;
-            dragState.current.lastX = x;
-            dragState.current.lastY = y;
-            break;
-          }
-        }
-      }
+    if (conversationId) {
+      sendMessage(trimmed);
+      return;
     }
 
-    if (dragState.current.panelId) {
-      const TRASH_ZONE_SIZE = 150;
-      if (x > window.innerWidth - TRASH_ZONE_SIZE && y > window.innerHeight - TRASH_ZONE_SIZE) {
-        togglePanelVisibility(dragState.current.panelId);
-        dragState.current.panelId = null;
-        dragState.current.initialWidth = 0;
-        dragState.current.initialHeight = 0;
-      } else {
-        const newX = x + dragState.current.offsetX;
-        const newY = y + dragState.current.offsetY;
-        updatePanelPosition(dragState.current.panelId, newX, newY);
-      }
-    }
-
-    if (dragState.current.registryId) {
-      const entry = registry.current.get(dragState.current.registryId);
-      if (entry) {
-        entry.nudge(x - dragState.current.lastX, y - dragState.current.lastY);
-        dragState.current.lastX = x;
-        dragState.current.lastY = y;
-      }
-    }
-  }, [layout.panels, bringToFront, updatePanelPosition, togglePanelVisibility, registry]);
-
-  const handleDragEnd = useCallback(() => {
-    dragState.current.panelId = null;
-    dragState.current.registryId = null;
-    dragState.current.initialWidth = 0;
-    dragState.current.initialHeight = 0;
-    dragState.current.lastX = 0;
-    dragState.current.lastY = 0;
-  }, []);
-
-  const handlePanelScale = useCallback((scaleFactor: number) => {
-    if (dragState.current.panelId) {
-      const panel = layout.panels[dragState.current.panelId];
-      if (panel) {
-        let newWidth = dragState.current.initialWidth * scaleFactor;
-        let newHeight = dragState.current.initialHeight * scaleFactor;
-        newWidth = Math.max(200, Math.min(newWidth, window.innerWidth - 40));
-        newHeight = Math.max(100, Math.min(newHeight, window.innerHeight - 40));
-        updatePanelSize(dragState.current.panelId, newWidth, newHeight);
-      }
-    }
-  }, [layout.panels, updatePanelSize]);
-
-  // Flick/throw: animate a registry panel off-screen with velocity
-  const handleFlick = useCallback((vx: number, vy: number, x: number, y: number) => {
-    // Find which panel is at (x, y) in registry
-    for (const [, entry] of registry.current.entries()) {
-      const rect = entry.getRect();
-      if (rect && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
-        // Throw it off-screen via rapid nudge
-        const THROW_DIST = 1200;
-        const spd = Math.hypot(vx, vy);
-        const nx = vx / spd, ny = vy / spd;
-        entry.nudge(nx * THROW_DIST, ny * THROW_DIST);
-        break;
-      }
-    }
-  }, [registry]);
-
-  const handleClearCanvas = () => {
-    setClearCount(c => c + 1);
-    setAnnotations([]);
-  };
-
-  const handleAskAI = async () => {
-    if (!canvasData) return;
-    setIsAiProcessing(true);
+    // No active conversation yet — create one and send directly to it. SSE re-subscribes when the
+    // new conversation becomes active (a render later); the answer still arrives on it.
     try {
-      const response = await fetch('/api/ai/vision', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          imageBase64: canvasData,
-          uiState: JSON.stringify(layout.panels),
-          intent: 'Please analyze my drawing on this HUD'
-        })
+      const conv = await createConversation('J.A.R.V.I.S.');
+      useChatStore.getState().addMessage(conv.id, {
+        id: Date.now().toString(), role: 'user', content: trimmed,
       });
-      
-      if (!response.ok) throw new Error('Vision API failed');
-      const text = await response.text();
-      try {
-        const parsed = JSON.parse(text);
-        setAnnotations(parsed);
-      } catch (e) {
-        setAnnotations([{ x: window.innerWidth / 2 - 100, y: 100, text: 'AI responded, but format was invalid.', color: '#ef4444' }]);
-      }
+      await chatApi.sendMessage(conv.id, trimmed);
     } catch (e) {
-      console.error(e);
-      setAnnotations([{ x: window.innerWidth / 2 - 100, y: 100, text: 'Vision Error', color: '#ef4444' }]);
-    } finally {
-      setIsAiProcessing(false);
+      console.error('Failed to send command', e);
+      setCaptionText('Unable to reach the core — is the backend running?');
     }
-  };
-
-  const handleTextCommand = useCallback((text: string) => {
-    if (text.trim() && conversationId) sendMessage(text.trim());
-  }, [sendMessage, conversationId]);
-
-  const handleVoiceCommand = useCallback((text: string) => {
-    handleTextCommand(text);
-  }, [handleTextCommand]);
+  }, [conversationId, sendMessage, createConversation]);
 
   // Barge-in: silence JARVIS the moment the user starts speaking.
+  // NOTE: we intentionally do NOT cancel the in-flight run here. In hands-free mode the mic stays
+  // open, so JARVIS's own TTS (and ambient noise) echoes back and fires onspeechstart — auto-
+  // cancelling would kill the very turn that's producing the answer. True barge-in-to-cancel needs
+  // the mic muted while TTS plays; until then, only stop speech.
   const handleVoiceStart = useCallback(() => {
     stopTTS();
   }, [stopTTS]);
@@ -401,10 +301,23 @@ const JarvisHUDContent: React.FC = () => {
     }
   }, [vizMode]);
 
+  // Toggle multi-agent ("swarm") mode — persist agent.multi.enabled so the dispatcher routes
+  // the next turn through the agent team instead of the single agent.
+  const handleToggleSwarm = useCallback(async () => {
+    const next = !swarmMode;
+    setSwarmMode(next);
+    try {
+      await settingsApi.update('agent.multi.enabled', String(next));
+    } catch (e) {
+      console.error('Failed to persist multi-agent setting', e);
+      setSwarmMode(!next); // revert on failure
+    }
+  }, [swarmMode]);
+
   const isCombat = theme === 'combat';
   const panels = layout.panels || {};
 
-  const isGlobalProcessing = isAiProcessing || sending || thinking;
+  const isGlobalProcessing = sending || thinking;
   const coreState: 'idle' | 'thinking' | 'speaking' =
     isGlobalProcessing ? 'thinking' : speaking ? 'speaking' : 'idle';
 
@@ -476,6 +389,13 @@ const JarvisHUDContent: React.FC = () => {
       {/* Visualization panels — table, chart, code, json, diff, metrics */}
       <VizPanelHost panels={vizPanels} onDismiss={vizDismiss} />
 
+      {/* Multi-agent swarm panel — roster, internal feed, task board, graph */}
+      <AnimatePresence>
+        {swarmMode && !swarmDismissed && Object.keys(swarm.agents).length > 0 && (
+          <AgentSwarmPanel key="swarm" swarm={swarm} onClose={() => setSwarmDismissed(true)} />
+        )}
+      </AnimatePresence>
+
       {/* Proactive Alert Toasts */}
       <ProactiveAlertToast alerts={proactiveAlerts} onDismiss={dismissProactiveAlert} />
 
@@ -486,22 +406,6 @@ const JarvisHUDContent: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Drawing Canvas Overlay */}
-      <GestureCanvas
-        isDrawingMode={isDrawingMode}
-        annotations={annotations}
-        onCanvasData={setCanvasData}
-        clearCount={clearCount}
-        onGesture={handleGesture}
-        onPanelDrag={handlePanelDrag}
-        onPanelScale={handlePanelScale}
-        onDragEnd={handleDragEnd}
-        onFlick={handleFlick}
-        enabled={gesturesEnabled && isDrawingMode}
-        smartShapes={getBoolean('ui.gestures.smart_shapes', true)}
-        injectedShape={injectedShape}
-      />
-
       {/* Data stream ribbons — animate from command bar to result panels on tool calls */}
       <DataStreamRibbon
         events={ribbons}
@@ -511,26 +415,23 @@ const JarvisHUDContent: React.FC = () => {
       {/* HUD Control Bar */}
       <div ref={commandBarRef} className="absolute top-0 left-0 right-0 z-[51] pointer-events-none" style={{ height: 80 }} />
       <HudControlBar
-        isDrawingMode={isDrawingMode}
-        onToggleDrawingMode={() => setIsDrawingMode(!isDrawingMode)}
         onResetLayout={resetLayout}
-        onAskAI={handleAskAI}
-        onClear={handleClearCanvas}
-        onVoiceCommand={handleVoiceCommand}
+        onVoiceCommand={submitCommand}
         isAiProcessing={isGlobalProcessing}
-        gesturesEnabled={gesturesEnabled}
-        onToggleGestures={() => setGesturesEnabled(p => !p)}
-        onSubmitTextCommand={handleTextCommand}
+        onSubmitTextCommand={submitCommand}
         ttsEnabled={ttsEnabled}
         onToggleTTS={() => setTtsEnabled(p => !p)}
         proactiveEnabled={proactiveEnabled}
         onToggleProactive={handleToggleProactive}
         vizMode={vizMode}
         onToggleViz={handleToggleViz}
+        swarmMode={swarmMode}
+        onToggleSwarm={handleToggleSwarm}
         handsFree={handsFree}
         onToggleHandsFree={() => setHandsFree(p => !p)}
         onVoiceStart={handleVoiceStart}
         onListeningChange={setListening}
+        voicePaused={speaking}
       />
 
       {/* Live subtitle captions of JARVIS's speech */}

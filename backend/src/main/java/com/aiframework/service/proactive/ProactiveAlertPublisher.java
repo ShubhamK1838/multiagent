@@ -1,5 +1,6 @@
 package com.aiframework.service.proactive;
 
+import com.aiframework.core.ai.PersonaPhraser;
 import com.aiframework.core.event.EventBus;
 import com.aiframework.service.SettingsService;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ public class ProactiveAlertPublisher {
     private final EventBus eventBus;
     private final SettingsService settingsService;
     private final ActiveConversationTracker conversationTracker;
+    private final PersonaPhraser personaPhraser;
 
     // Maps alert-type key → last publish time for cooldown enforcement
     private final ConcurrentMap<String, Instant> lastPublished = new ConcurrentHashMap<>();
@@ -38,7 +40,9 @@ public class ProactiveAlertPublisher {
 
         lastPublished.put(alertType, Instant.now());
         log.info("Proactive alert: type={} conv={}", alertType, conversationId.substring(0, 8));
-        eventBus.publishProactiveAlert(conversationId, message);
+        // Phrase the raw event in JARVIS's voice (fail-soft, gated by persona.phrase_alerts).
+        String spoken = personaPhraser.phrase(message, conversationId);
+        eventBus.publishProactiveAlert(conversationId, spoken);
     }
 
     private boolean isCoolingDown(String alertType) {

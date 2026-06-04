@@ -17,5 +17,12 @@ public enum EventType {
     ERROR,
     ITERATION_START,
     ITERATION_END,
-    PROACTIVE_ALERT
+    PROACTIVE_ALERT,
+    // Multi-agent ("swarm") observability
+    COORDINATION_PLAN,
+    AGENT_SPAWNED,
+    AGENT_STATUS,
+    AGENT_MESSAGE,
+    TASK_CREATED,
+    TASK_UPDATED
 }

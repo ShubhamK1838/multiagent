@@ -25,6 +25,12 @@ const EVENT_CONFIG: Record<EventType, { label: string; color: string; dimColor: 
   ITERATION_START:  { label: 'ITER',   color: '#ff8800',              dimColor: 'rgba(255,136,0,0.5)' },
   ITERATION_END:    { label: 'ITER',   color: '#ff8800',              dimColor: 'rgba(255,136,0,0.5)' },
   PROACTIVE_ALERT:  { label: 'ALERT',  color: '#fbbf24',              dimColor: 'rgba(251,191,36,0.5)' },
+  COORDINATION_PLAN:{ label: 'PLAN',   color: '#22d3ee',              dimColor: 'rgba(34,211,238,0.5)' },
+  AGENT_SPAWNED:    { label: 'SPAWN',  color: '#a78bfa',              dimColor: 'rgba(167,139,250,0.5)' },
+  AGENT_STATUS:     { label: 'STATUS', color: '#38bdf8',              dimColor: 'rgba(56,189,248,0.5)' },
+  AGENT_MESSAGE:    { label: 'MSG',    color: '#a78bfa',              dimColor: 'rgba(167,139,250,0.5)' },
+  TASK_CREATED:     { label: 'TASK',   color: '#34d399',              dimColor: 'rgba(52,211,153,0.5)' },
+  TASK_UPDATED:     { label: 'TASK',   color: '#34d399',              dimColor: 'rgba(52,211,153,0.5)' },
 }
 
 function EventItem({ event }: { event: AgentEvent }) {

@@ -34,7 +34,7 @@ public class SystemMetricsMonitor {
 
         if (usedPercent >= threshold) {
             alertPublisher.publish("jvm_memory",
-                    String.format("⚠ JVM heap memory is at %d%% (%s / %s). Consider clearing caches or restarting.",
+                    String.format("Heap memory's running warm — %d%% (%s of %s). Might be worth clearing some caches.",
                             usedPercent, formatBytes(used), formatBytes(max)));
         }
     }

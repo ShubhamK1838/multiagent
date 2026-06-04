@@ -74,6 +74,15 @@ voice:
     url: ${PIPER_TTS_URL:http://localhost:5000}
     voice: ${PIPER_VOICE:en_GB-alan-medium}
     speed: 1.0
+    # Neural TTS via an NVIDIA NIM (mirrors the Whisper ASR setup). The frontend calls
+    # POST /api/v1/voice/speak; if the NIM is unreachable it falls back to browser TTS.
+    engine: ${TTS_ENGINE:nvidia}          # nvidia | browser
+    base-url: ${NVIDIA_TTS_URL:http://localhost:9001}
+    path: ${NVIDIA_TTS_PATH:/v1/audio/speech}
+    model: ${NVIDIA_TTS_MODEL:magpie-tts-multilingual}
+    nim-voice: ${NVIDIA_TTS_VOICE:English-US.Male-1}
+    format: ${NVIDIA_TTS_FORMAT:mp3}
+    api-key: ${NVIDIA_TTS_API_KEY:}
   enabled: true
   autoplay: true
   wakeword:

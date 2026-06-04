@@ -5,12 +5,14 @@ interface UseVoiceRecognitionOptions {
   lang?: string;
   continuous?: boolean;
   interimResults?: boolean;
-  /** When true, listens continuously and only acts on speech that starts with the wake word. */
+  /** When true, listens continuously and sends every finalized utterance (always-on). */
   handsFree?: boolean;
-  /** Wake word that activates a hands-free command (case-insensitive). */
+  /** Wake word — stripped from the start of a command if present, but no longer required. */
   wakeWord?: string;
   /** Fired when the user starts speaking — used for TTS barge-in. */
   onSpeechStart?: () => void;
+  /** When true, ignore recognition results (e.g. while JARVIS is speaking) to avoid self-echo. */
+  paused?: boolean;
 }
 
 // Strip a leading wake word (e.g. "hey jarvis, ...") and return the remaining command.
@@ -32,6 +34,7 @@ export const useVoiceRecognition = ({
   handsFree = false,
   wakeWord = 'jarvis',
   onSpeechStart,
+  paused = false,
 }: UseVoiceRecognitionOptions) => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -43,10 +46,12 @@ export const useVoiceRecognition = ({
   const onCommandRef = useRef(onCommand);
   const onSpeechStartRef = useRef(onSpeechStart);
   const handsFreeRef = useRef(handsFree);
+  const pausedRef = useRef(paused);
   const manualStopRef = useRef(false);
   useEffect(() => { onCommandRef.current = onCommand; }, [onCommand]);
   useEffect(() => { onSpeechStartRef.current = onSpeechStart; }, [onSpeechStart]);
   useEffect(() => { handsFreeRef.current = handsFree; }, [handsFree]);
+  useEffect(() => { pausedRef.current = paused; }, [paused]);
 
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -62,6 +67,7 @@ export const useVoiceRecognition = ({
     recognition.lang = lang;
 
     recognition.onspeechstart = () => {
+      if (pausedRef.current) return; // ignore our own TTS echo while JARVIS is speaking
       onSpeechStartRef.current?.();
     };
 
@@ -78,16 +84,20 @@ export const useVoiceRecognition = ({
         }
       }
 
-      // Hands-free: act on each finalized phrase that contains the wake word, then reset.
+      // Hands-free: always-on listening — send every finalized utterance. The wake word is no
+      // longer required; if the user happens to say it, it's stripped off the front.
       if (handsFreeRef.current) {
-        setTranscript(interimStr || fullTranscriptRef.current);
-        if (finalStr) {
-          const command = extractCommand(finalStr, wakeWord.toLowerCase());
-          if (command) {
+        if (pausedRef.current) { setTranscript(''); return; } // muted while JARVIS speaks
+        setTranscript(interimStr || '');
+        if (finalStr.trim()) {
+          const stripped = extractCommand(finalStr, wakeWord.toLowerCase());
+          const command = (stripped !== null ? stripped : finalStr).trim();
+          // Ignore empty / wake-word-only / pure-noise results.
+          if (command && /[a-z0-9]/i.test(command)) {
             onCommandRef.current(command);
-            fullTranscriptRef.current = '';
-            setTranscript('');
           }
+          fullTranscriptRef.current = '';
+          setTranscript('');
         }
         return;
       }

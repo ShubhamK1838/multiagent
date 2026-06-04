@@ -1,6 +1,6 @@
 package com.aiframework.api;
 
-import com.aiframework.core.agent.AgentOrchestrator;
+import com.aiframework.core.agent.AgentRunnerDispatcher;
 import com.aiframework.core.event.AgentEvent;
 import com.aiframework.core.event.EventBus;
 import com.aiframework.core.event.EventType;
@@ -22,7 +22,7 @@ public class FormController {
 
     private final FormRequestRepository formRequestRepository;
     private final EventBus eventBus;
-    private final AgentOrchestrator agentOrchestrator;
+    private final AgentRunnerDispatcher agentRunnerDispatcher;
     private final ConversationService conversationService;
 
     @GetMapping("/{formId}")
@@ -53,7 +53,7 @@ public class FormController {
 
         var history = conversationService.getHistory(formRequest.getConversationId());
         String formDataMessage = "User provided form data: " + formData;
-        agentOrchestrator.run(conversationId, history, formDataMessage, null);
+        agentRunnerDispatcher.run(conversationId, history, formDataMessage, null);
 
         return Map.of("status", "submitted", "formId", formId.toString());
     }

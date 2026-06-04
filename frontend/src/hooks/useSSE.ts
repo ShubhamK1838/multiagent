@@ -127,6 +127,9 @@ export function useSSE(conversationId: string | null, onEvent?: (event: AgentEve
       'FORM_REQUEST', 'FORM_RESOLVED', 'TOKEN', 'STREAM_RESET',
       'RESPONSE_START', 'RESPONSE_END', 'AGENT_START', 'AGENT_END', 'ERROR',
       'ITERATION_START', 'ITERATION_END', 'PROACTIVE_ALERT',
+      // Multi-agent ("swarm") events — must be listed so EventSource delivers them.
+      'COORDINATION_PLAN', 'AGENT_SPAWNED', 'AGENT_STATUS', 'AGENT_MESSAGE',
+      'TASK_CREATED', 'TASK_UPDATED',
     ]
 
     eventTypes.forEach(type => {

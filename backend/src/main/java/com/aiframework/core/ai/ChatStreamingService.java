@@ -35,17 +35,31 @@ public class ChatStreamingService {
     }
 
     public String stream(ChatClient client, List<Message> messages, String conversationId) {
-        publishStart(conversationId);
+        return stream(client, messages, conversationId, true);
+    }
+
+    /**
+     * Streams a completion from the given client.
+     *
+     * @param streamTokens when {@code true}, RESPONSE_START/END and TOKEN events are published to
+     *                     the conversation's SSE channel (used for the user-facing answer). When
+     *                     {@code false}, the stream is consumed silently — used by background
+     *                     worker agents whose intermediate output must NOT leak onto the main
+     *                     answer stream.
+     */
+    public String stream(ChatClient client, List<Message> messages, String conversationId, boolean streamTokens) {
+        if (streamTokens) publishStart(conversationId);
         StringBuilder accumulator = new StringBuilder();
         try {
-            consumeStream(client, messages, accumulator, conversationId);
+            consumeStream(client, messages, accumulator, conversationId, streamTokens);
         } finally {
-            publishEnd(conversationId);
+            if (streamTokens) publishEnd(conversationId);
         }
         return accumulator.toString();
     }
 
-    private void consumeStream(ChatClient client, List<Message> messages, StringBuilder accumulator, String conversationId) {
+    private void consumeStream(ChatClient client, List<Message> messages, StringBuilder accumulator,
+                               String conversationId, boolean streamTokens) {
         // State to track if we should stream to the UI
         boolean[] isJsonDetermined = {false};
         boolean[] isPlainText = {false};
@@ -58,6 +72,8 @@ public class ChatStreamingService {
                 .doOnNext(token -> {
                     if (token == null || token.isEmpty()) return;
                     accumulator.append(token);
+
+                    if (!streamTokens) return; // silent consumption for background worker agents
 
                     if (!isJsonDetermined[0]) {
                         String current = accumulator.toString().stripLeading();

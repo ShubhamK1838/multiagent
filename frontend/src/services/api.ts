@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Conversation, ToolDefinition, SystemSetting, FormRequest, AiModel, AiModelInput, ToolExecution, ConversationSummary, WorkflowWithSteps, Workflow } from '../types'
+import type { Conversation, ToolDefinition, SystemSetting, FormRequest, AiModel, AiModelInput, ToolExecution, ConversationSummary, WorkflowWithSteps, Workflow, AgentDefinition, AgentDefinitionInput } from '../types'
 
 const api = axios.create({ baseURL: '/api/v1' })
 
@@ -83,6 +83,16 @@ export const aiModelApi = {
   setDefault: (id: string) => api.post<AiModel>(`/ai-models/${id}/default`).then(r => r.data),
 }
 
+export const agentDefinitionApi = {
+  list: () => api.get<AgentDefinition[]>('/agent-definitions').then(r => r.data),
+  get: (id: string) => api.get<AgentDefinition>(`/agent-definitions/${id}`).then(r => r.data),
+  create: (input: AgentDefinitionInput) =>
+    api.post<AgentDefinition>('/agent-definitions', input).then(r => r.data),
+  update: (id: string, input: AgentDefinitionInput) =>
+    api.put<AgentDefinition>(`/agent-definitions/${id}`, input).then(r => r.data),
+  delete: (id: string) => api.delete(`/agent-definitions/${id}`),
+}
+
 export const proactiveModeApi = {
   getStatus: () =>
     api.get<{ enabled: boolean; watchPath: string }>('/proactive/status').then(r => r.data),
@@ -101,6 +111,13 @@ export const voiceApi = {
       .post<{ text?: string; error?: string }>('/voice/transcribe', form)
       .then(r => r.data.text ?? '')
   },
+
+  // Synthesise speech via the neural TTS NIM. Resolves to an audio Blob, or rejects if the NIM
+  // is disabled/unreachable so the caller can fall back to browser speech synthesis.
+  speak: (text: string, voice?: string) =>
+    api
+      .post('/voice/speak', { text, voice }, { responseType: 'blob' })
+      .then(r => r.data as Blob),
 }
 
 export const workflowApi = {

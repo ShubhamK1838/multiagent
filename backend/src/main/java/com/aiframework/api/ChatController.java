@@ -1,6 +1,6 @@
 package com.aiframework.api;
 
-import com.aiframework.core.agent.AgentOrchestrator;
+import com.aiframework.core.agent.AgentRunnerDispatcher;
 import com.aiframework.core.agent.CancellationService;
 import com.aiframework.core.event.EventBus;
 import com.aiframework.domain.entity.Conversation;
@@ -28,7 +28,7 @@ import com.aiframework.domain.entity.MessageEntity;
 public class ChatController {
 
     private final ConversationService conversationService;
-    private final AgentOrchestrator agentOrchestrator;
+    private final AgentRunnerDispatcher agentRunnerDispatcher;
     private final CancellationService cancellationService;
     private final EventBus eventBus;
     private final ObjectMapper objectMapper;
@@ -80,7 +80,7 @@ public class ChatController {
             history = history.subList(history.size() - 20, history.size());
         }
 
-        agentOrchestrator.run(conversationId, history, userMessage, imageBase64);
+        agentRunnerDispatcher.run(conversationId, history, userMessage, imageBase64);
         return Map.of("status", "processing", "conversationId", conversationId);
     }
 

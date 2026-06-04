@@ -9,12 +9,14 @@ interface VoiceCommanderProps {
   handsFree?: boolean;
   onSpeechStart?: () => void;
   onListeningChange?: (listening: boolean) => void;
+  /** Mute the always-on listener (e.g. while JARVIS is speaking) to avoid self-echo. */
+  paused?: boolean;
 }
 
-export const VoiceCommander: React.FC<VoiceCommanderProps> = ({ onCommand, isProcessing, handsFree, onSpeechStart, onListeningChange }) => {
-  // Hands-free wake word runs on the on-device browser engine (always-on, cheap).
+export const VoiceCommander: React.FC<VoiceCommanderProps> = ({ onCommand, isProcessing, handsFree, onSpeechStart, onListeningChange, paused }) => {
+  // Hands-free runs the on-device browser engine in always-on mode (continuous, no wake word).
   // The manual mic button uses high-accuracy NVIDIA Whisper push-to-talk.
-  const browser = useVoiceRecognition({ onCommand, handsFree, onSpeechStart });
+  const browser = useVoiceRecognition({ onCommand, handsFree, onSpeechStart, paused });
   const nvidia = useNvidiaVoice({ onCommand, onListenStart: onSpeechStart });
 
   const isListening = handsFree ? browser.isListening : nvidia.isListening;

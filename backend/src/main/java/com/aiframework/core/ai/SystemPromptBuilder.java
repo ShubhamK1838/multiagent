@@ -16,6 +16,12 @@ import java.util.List;
 @Component
 public class SystemPromptBuilder {
 
+    private final PersonaProvider personaProvider;
+
+    public SystemPromptBuilder(PersonaProvider personaProvider) {
+        this.personaProvider = personaProvider;
+    }
+
     private static final String USER_HOME  = System.getProperty("user.home");
     private static final String OS_NAME    = System.getProperty("os.name", "Unknown");
     private static final boolean IS_WINDOWS = OS_NAME.toLowerCase().contains("win");
@@ -281,6 +287,7 @@ public class SystemPromptBuilder {
     public SystemMessage build(String basePrompt, List<String> toolDescriptions, String ragContext,
                                String memoryBlock, boolean autoVisualize) {
         StringBuilder prompt = new StringBuilder(basePrompt);
+        appendSection(prompt, personaProvider.block(), null);
         appendSection(prompt, memoryBlock, null);
         appendRagContext(prompt, ragContext);
         appendToolCatalog(prompt, toolDescriptions);

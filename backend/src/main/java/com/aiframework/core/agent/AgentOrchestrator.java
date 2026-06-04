@@ -1,14 +1,9 @@
 package com.aiframework.core.agent;
 
-import com.aiframework.core.ai.LLMResponse;
-import com.aiframework.core.ai.LLMService;
-import com.aiframework.core.event.AgentEvent;
-import com.aiframework.core.event.EventBus;
-import com.aiframework.core.event.EventType;
-import com.aiframework.core.tool.ToolExecutionResult;
-import com.aiframework.service.ConversationService;
+import com.aiframework.core.agent.AgentIterationEngine.IterationContext;
+import com.aiframework.core.agent.AgentIterationEngine.IterationOutcome;
+import com.aiframework.core.agent.AgentIterationEngine.IterationResult;
 import com.aiframework.service.SettingsService;
-import com.aiframework.service.memory.SessionMemoryService;
 import com.aiframework.service.monitoring.LogStreamService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,165 +12,73 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.UUID;
 
+/**
+ * Single-agent {@link ConversationRunner}: one model reasons and acts in a loop until it produces
+ * a final answer. The reason/act loop lives in {@link AgentIterationEngine} and the turn lifecycle
+ * in {@link TurnSupport}, both shared with the multi-agent path.
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class AgentOrchestrator {
+public class AgentOrchestrator implements ConversationRunner {
 
     private static final int DEFAULT_MAX_ITERATIONS = 10;
     private static final String MAX_ITERATIONS_MESSAGE =
             "Maximum iterations reached. Please refine your request.";
 
-    private final LLMService llmService;
     private final AgentMessageBuilder messageBuilder;
-    private final ToolCallExecutor toolCallExecutor;
-    private final EventBus eventBus;
+    private final AgentIterationEngine iterationEngine;
     private final SettingsService settings;
-    private final ConversationService conversationService;
     private final CancellationService cancellationService;
     private final LogStreamService logStreamService;
-    private final SessionMemoryService sessionMemoryService;
+    private final TurnSupport turnSupport;
 
+    @Override
     @Async
     public void run(String conversationId, List<Message> history, String userMessage, String imageBase64) {
         cancellationService.clear(conversationId);
-        logStreamService.agent("ORCHESTRATOR", "◈ AGENT_START conv=" + conversationId.substring(0, 8) + "... query=" + truncate(userMessage, 60));
-        publishAgentStart(conversationId, userMessage);
+        logStreamService.agent("ORCHESTRATOR", "◈ AGENT_START conv=" + shortId(conversationId) + "... query=" + truncate(userMessage, 60));
+        turnSupport.publishStart(conversationId, userMessage);
         List<Message> messages = messageBuilder.buildInitialMessages(history, userMessage, imageBase64);
 
-            try {
-            IterationOutcome outcome = runIterationLoop(conversationId, messages);
-            if (outcome == IterationOutcome.EXHAUSTED) {
-                logStreamService.warn("ORCHESTRATOR", "⚠ MAX_ITERATIONS reached for conv=" + conversationId.substring(0, 8));
-                publishAgentEnd(conversationId, MAX_ITERATIONS_MESSAGE);
-            } else if (outcome == IterationOutcome.CANCELLED) {
-                logStreamService.warn("ORCHESTRATOR", "⊘ CANCELLED by user for conv=" + conversationId.substring(0, 8));
-                publishAgentEnd(conversationId, "Agent execution was cancelled by the user.");
+        try {
+            IterationResult outcome = iterationEngine.run(IterationContext.builder()
+                    .conversationId(conversationId)
+                    .messages(messages)
+                    .maxIterations(settings.getInt("agent.max_iterations", DEFAULT_MAX_ITERATIONS))
+                    .build());
+
+            if (outcome.getOutcome() == IterationOutcome.DONE) {
+                logStreamService.agent("ORCHESTRATOR", "✓ AGENT_END conv=" + shortId(conversationId));
+                turnSupport.publishEnd(conversationId, outcome.getContent());
+                turnSupport.triggerMemory(conversationId);
+            } else if (outcome.getOutcome() == IterationOutcome.EXHAUSTED) {
+                logStreamService.warn("ORCHESTRATOR", "⚠ MAX_ITERATIONS reached for conv=" + shortId(conversationId));
+                turnSupport.publishEnd(conversationId, MAX_ITERATIONS_MESSAGE);
+            } else if (outcome.getOutcome() == IterationOutcome.CANCELLED) {
+                logStreamService.warn("ORCHESTRATOR", "⊘ CANCELLED by user for conv=" + shortId(conversationId));
+                turnSupport.publishEnd(conversationId, "Agent execution was cancelled by the user.");
             } else {
-                logStreamService.agent("ORCHESTRATOR", "✓ AGENT_END conv=" + conversationId.substring(0, 8));
-                triggerMemorySummarization(conversationId);
+                // PAUSED — a form request was published; the turn resumes on user input.
+                logStreamService.agent("ORCHESTRATOR", "⏸ PAUSED (awaiting user input) conv=" + shortId(conversationId));
+                turnSupport.triggerMemory(conversationId);
             }
         } catch (Exception e) {
             log.error("Agent run failed for conv {}: {}", conversationId, e.getMessage(), e);
-            logStreamService.error("ORCHESTRATOR", "✗ AGENT_FAILED conv=" + conversationId.substring(0, 8) + " : " + describeFailure(e));
-            publishAgentEnd(conversationId, friendlyError(e));
+            logStreamService.error("ORCHESTRATOR", "✗ AGENT_FAILED conv=" + shortId(conversationId) + " : " + turnSupport.describeFailure(e));
+            turnSupport.publishEnd(conversationId, turnSupport.friendlyError(e));
         } finally {
             cancellationService.clear(conversationId);
         }
     }
 
-    private IterationOutcome runIterationLoop(String conversationId, List<Message> messages) {
-        int maxIterations = settings.getInt("agent.max_iterations", DEFAULT_MAX_ITERATIONS);
-        for (int i = 0; i < maxIterations; i++) {
-            if (cancellationService.isCancelled(conversationId)) {
-                return IterationOutcome.CANCELLED;
-            }
-            IterationOutcome outcome = runSingleIteration(conversationId, messages);
-            if (outcome != IterationOutcome.CONTINUE) return outcome;
-        }
-        return IterationOutcome.EXHAUSTED;
-    }
-
-    private IterationOutcome runSingleIteration(String conversationId, List<Message> messages) {
-        LLMResponse response = llmService.chat(messages, conversationId);
-
-        if (cancellationService.isCancelled(conversationId)) {
-            return IterationOutcome.CANCELLED;
-        }
-
-        if (!response.isToolCall()) {
-            String content = response.getContent();
-            if (content == null || content.isBlank()) {
-                // LLM emitted only a mode keyword with no actual text — ask it to try again
-                logStreamService.warn("LLM", "⚠ Blank final answer received, nudging model to respond");
-                messages.add(new org.springframework.ai.chat.messages.UserMessage(
-                        "[SYSTEM] Your last response was empty. Please provide your actual answer now."));
-                return IterationOutcome.CONTINUE;
-            }
-            logStreamService.agent("LLM", "✦ FINAL_ANSWER " + truncate(content, 80));
-            publishAgentEnd(conversationId, content);
-            return IterationOutcome.DONE;
-        }
-
-        logStreamService.agent("LLM", "→ TOOL_INVOKE: " + response.getToolName());
-        publishThinkingIfPresent(conversationId, response);
-        ToolExecutionResult result = toolCallExecutor.execute(response, conversationId);
-
-        if (cancellationService.isCancelled(conversationId)) {
-            return IterationOutcome.CANCELLED;
-        }
-
-        if (result.isRequiresUserInput()) {
-            return IterationOutcome.PAUSED;
-        }
-        toolCallExecutor.appendToolExchange(messages, response, result);
-        return IterationOutcome.CONTINUE;
-    }
-
-    private void publishAgentStart(String conversationId, String userMessage) {
-        eventBus.publish(AgentEvent.of(EventType.AGENT_START, conversationId, userMessage));
-    }
-
-    private void publishAgentEnd(String conversationId, String content) {
-        persistAssistantMessage(conversationId, content);
-        eventBus.publish(AgentEvent.of(EventType.AGENT_END, conversationId, content));
-    }
-
-    private void persistAssistantMessage(String conversationId, String content) {
-        if (content == null || content.isBlank()) return;
-        try {
-            conversationService.saveMessage(UUID.fromString(conversationId), "assistant", content);
-        } catch (Exception e) {
-            log.warn("Failed to persist assistant message for conv {}: {}", conversationId, e.getMessage());
-        }
-    }
-
-    private void publishThinkingIfPresent(String conversationId, LLMResponse response) {
-        String reasoning = response.getReasoning();
-        if (reasoning != null && !reasoning.isBlank()) {
-            logStreamService.agent("LLM", "💭 THINKING: " + truncate(reasoning, 80));
-            eventBus.publishThinking(conversationId, reasoning);
-        }
-    }
-
-    private void triggerMemorySummarization(String conversationId) {
-        try {
-            sessionMemoryService.summarizeAndSave(UUID.fromString(conversationId));
-        } catch (Exception e) {
-            log.warn("Memory summarization failed for conv {}: {}", conversationId, e.getMessage());
-        }
-    }
-
-    private String friendlyError(Throwable e) {
-        if (isTimeout(e)) {
-            return "The model did not respond in time and the request timed out. "
-                    + "It may be under heavy load or unreachable — please try again.";
-        }
-        return "Something went wrong while contacting the model: " + describeFailure(e)
-                + ". Please try again.";
-    }
-
-    private boolean isTimeout(Throwable e) {
-        for (Throwable t = e; t != null; t = t.getCause()) {
-            if (t instanceof java.util.concurrent.TimeoutException) return true;
-            if (t == t.getCause()) break;
-        }
-        return false;
-    }
-
-    private String describeFailure(Throwable e) {
-        Throwable root = e;
-        while (root.getCause() != null && root.getCause() != root) root = root.getCause();
-        String msg = root.getMessage();
-        return msg != null && !msg.isBlank() ? truncate(msg, 120) : root.getClass().getSimpleName();
+    private String shortId(String conversationId) {
+        return conversationId.length() >= 8 ? conversationId.substring(0, 8) : conversationId;
     }
 
     private String truncate(String s, int max) {
         if (s == null) return "";
         return s.length() <= max ? s : s.substring(0, max) + "...";
     }
-
-    private enum IterationOutcome { CONTINUE, DONE, PAUSED, EXHAUSTED, CANCELLED }
 }

@@ -31,6 +31,12 @@ export type EventType =
   | 'ITERATION_START'
   | 'ITERATION_END'
   | 'PROACTIVE_ALERT'
+  | 'COORDINATION_PLAN'
+  | 'AGENT_SPAWNED'
+  | 'AGENT_STATUS'
+  | 'AGENT_MESSAGE'
+  | 'TASK_CREATED'
+  | 'TASK_UPDATED'
 
 export interface AgentEvent {
   id: string
@@ -39,6 +45,72 @@ export interface AgentEvent {
   content: string
   metadata?: Record<string, unknown>
   timestamp: string
+}
+
+// ── Multi-agent ("swarm") ───────────────────────────────────────────────────
+
+export type SwarmAgentStatus = 'idle' | 'thinking' | 'working' | 'waiting' | 'done' | 'failed'
+export type SwarmTaskStatus = 'pending' | 'running' | 'done' | 'failed' | 'retrying' | 'skipped'
+
+export interface SwarmAgent {
+  id: string          // role key, stable per run
+  role: string
+  displayName: string
+  model: string
+  color?: string
+  status: SwarmAgentStatus
+}
+
+export interface SwarmMessage {
+  id: string
+  from: string
+  to?: string         // undefined = broadcast
+  type: string        // PROPOSAL | RESULT | CRITIQUE | HANDOFF | ...
+  content: string
+}
+
+export interface SwarmTask {
+  id: string
+  role: string
+  goal: string
+  dependsOn: string[]
+  status: SwarmTaskStatus
+  attempt: number
+  resultSnippet?: string
+}
+
+export interface SwarmState {
+  active: boolean
+  planSummary: string | null
+  agents: Record<string, SwarmAgent>
+  tasks: Record<string, SwarmTask>
+  messages: SwarmMessage[]
+}
+
+/** A configurable multi-agent role (matches the backend AgentDefinition entity). */
+export interface AgentDefinition {
+  id: string
+  roleKey: string
+  displayName: string
+  systemPrompt: string
+  modelId: string | null
+  allowedTools: string[] | null
+  maxIterations: number
+  color: string | null
+  sortOrder: number
+  enabled: boolean
+}
+
+export interface AgentDefinitionInput {
+  roleKey?: string
+  displayName?: string
+  systemPrompt?: string
+  modelId?: string | null
+  allowedTools?: string[] | null
+  maxIterations?: number
+  color?: string | null
+  sortOrder?: number
+  enabled?: boolean
 }
 
 export interface ToolDefinition {
