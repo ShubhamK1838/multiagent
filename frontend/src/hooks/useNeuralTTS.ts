@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { voiceApi } from '../services/api'
+import { pickJarvisVoice, sanitizeForSpeech } from '../utils/speech'
 
 /**
  * Speaks text through the neural TTS NIM (POST /voice/speak), playing clips from a FIFO queue so
@@ -18,31 +19,23 @@ export function useNeuralTTS(enabled: boolean) {
   const neuralBrokenRef = useRef(false)
   const voiceRef = useRef<SpeechSynthesisVoice | null>(null)
 
-  // Pick a deep British-male browser voice for the fallback path (same heuristic as useTTS).
+  // Pick a deep British-male browser voice for the fallback path.
   useEffect(() => {
     if (!supported || !('speechSynthesis' in window)) return
     const load = () => {
       const voices = window.speechSynthesis.getVoices()
       if (voices.length === 0) return
-      const jarvis = /jarvis|daniel|george|arthur|oliver|ryan|google uk english male|alex|david/i
-      voiceRef.current =
-        voices.find(v => jarvis.test(v.name)) ??
-        voices.find(v => v.lang === 'en-GB') ??
-        voices.find(v => v.lang.startsWith('en')) ??
-        voices[0] ?? null
+      voiceRef.current = pickJarvisVoice(voices)
     }
     load()
     window.speechSynthesis.addEventListener('voiceschanged', load)
     return () => window.speechSynthesis.removeEventListener('voiceschanged', load)
   }, [supported])
 
-  const clean = (t: string) =>
-    t.replace(/```[\s\S]*?```/g, 'code block').replace(/[*_`#>~\[\]()]/g, '')
-
   const playBrowser = (text: string) =>
     new Promise<void>(resolve => {
       if (!('speechSynthesis' in window)) return resolve()
-      const u = new SpeechSynthesisUtterance(clean(text))
+      const u = new SpeechSynthesisUtterance(text)
       u.rate = 0.95
       u.pitch = 0.85
       u.volume = 1.0
@@ -52,10 +45,13 @@ export function useNeuralTTS(enabled: boolean) {
       window.speechSynthesis.speak(u)
     })
 
-  const playNeural = (text: string) =>
+  const playNeural = (text: string, gen: number) =>
     new Promise<void>((resolve, reject) => {
       voiceApi.speak(text)
         .then(blob => {
+          // stop() may have been called while the synthesis request was in flight —
+          // don't start playback for an utterance that was already cancelled.
+          if (genRef.current !== gen) return resolve()
           const url = URL.createObjectURL(blob)
           const audio = new Audio(url)
           currentAudioRef.current = audio
@@ -81,7 +77,7 @@ export function useNeuralTTS(enabled: boolean) {
           await playBrowser(text)
         } else {
           try {
-            await playNeural(text)
+            await playNeural(text, myGen)
           } catch {
             neuralBrokenRef.current = true // NIM unavailable — use browser for the rest of the session
             await playBrowser(text)
@@ -98,8 +94,10 @@ export function useNeuralTTS(enabled: boolean) {
 
   /** Queue a sentence/chunk to be spoken after whatever is already queued (streaming). */
   const enqueue = useCallback((text: string) => {
-    if (!enabled || !text || !text.trim()) return
-    queueRef.current.push(text)
+    if (!enabled || !text) return
+    const speakable = sanitizeForSpeech(text)
+    if (!speakable) return
+    queueRef.current.push(speakable)
     void pump()
   }, [enabled, pump])
 
@@ -111,7 +109,9 @@ export function useNeuralTTS(enabled: boolean) {
       currentAudioRef.current = null
     }
     if (supported && 'speechSynthesis' in window) window.speechSynthesis.cancel()
-    playingRef.current = false
+    // playingRef is NOT cleared here: the cancelled pump is still unwinding and resets it
+    // in its finally block. Clearing it early let a second pump start concurrently and
+    // produced overlapping audio when stop() and enqueue() were called back-to-back.
     setSpeaking(false)
   }, [supported])
 
@@ -119,8 +119,8 @@ export function useNeuralTTS(enabled: boolean) {
   const speak = useCallback((text: string) => {
     if (!enabled) return
     stop()
-    // Defer one tick so the cancelled pump fully unwinds before the new utterance starts.
-    setTimeout(() => enqueue(text), 0)
+    // Safe to enqueue immediately: the old pump's finally block re-pumps the queue.
+    enqueue(text)
   }, [enabled, stop, enqueue])
 
   return { speak, enqueue, stop, speaking, supported }

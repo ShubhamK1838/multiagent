@@ -1,21 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTheme } from '../../contexts/ThemeContext'
+import { sanitizeForSpeech } from '../../utils/speech'
 
 interface LiveCaptionsProps {
   /** The text JARVIS is currently speaking. */
   text: string
   /** Whether TTS is actively playing. */
   active: boolean
-}
-
-// Roughly matches the markdown stripping done in useTTS before speaking.
-function clean(text: string): string {
-  return text
-    .replace(/```[\s\S]*?```/g, ' code block ')
-    .replace(/[*_`#>~[\]()]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
 }
 
 /**
@@ -32,7 +24,7 @@ export const LiveCaptions: React.FC<LiveCaptionsProps> = ({ text, active }) => {
   useEffect(() => {
     idxRef.current = 0
     setShown('')
-    const full = clean(text)
+    const full = sanitizeForSpeech(text)
     if (!full) return
     const id = setInterval(() => {
       idxRef.current += 1

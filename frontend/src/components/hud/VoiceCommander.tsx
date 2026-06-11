@@ -15,8 +15,10 @@ interface VoiceCommanderProps {
 
 export const VoiceCommander: React.FC<VoiceCommanderProps> = ({ onCommand, isProcessing, handsFree, onSpeechStart, onListeningChange, paused }) => {
   // Hands-free runs the on-device browser engine in always-on mode (continuous, no wake word).
-  // The manual mic button uses high-accuracy NVIDIA Whisper push-to-talk.
-  const browser = useVoiceRecognition({ onCommand, handsFree, onSpeechStart, paused });
+  // The manual mic button uses high-accuracy NVIDIA Whisper push-to-talk. A wake-word barge-in
+  // while JARVIS is speaking silences TTS the same way user speech does, so both callbacks map
+  // to onSpeechStart.
+  const browser = useVoiceRecognition({ onCommand, handsFree, onSpeechStart, onInterrupt: onSpeechStart, paused });
   const nvidia = useNvidiaVoice({ onCommand, onListenStart: onSpeechStart });
 
   const isListening = handsFree ? browser.isListening : nvidia.isListening;

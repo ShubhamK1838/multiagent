@@ -47,6 +47,12 @@ public class RAGService {
 
     public String search(String query) {
         try {
+            // With no ingested documents the embedding round-trip to Ollama is pure dead
+            // weight on every turn's first-token latency — a COUNT is orders of magnitude
+            // cheaper, so check before embedding.
+            if (documentChunkRepository.count() == 0) {
+                return "";
+            }
             int topK = settingsService.getInt("rag.top_k", 5);
             float[] embedding = embeddingModel.embed(query);
             List<DocumentChunk> chunks = documentChunkRepository.findSimilarChunks(embedding, topK);

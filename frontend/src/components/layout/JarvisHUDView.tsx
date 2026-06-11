@@ -30,6 +30,7 @@ import type { RibbonEvent } from '../hud/DataStreamRibbon';
 import { VoiceVisualizer } from '../hud/VoiceVisualizer';
 import { BootSequence } from '../hud/BootSequence';
 import { LiveCaptions } from '../hud/LiveCaptions';
+import { lastSpeakableBoundary } from '../../utils/speech';
 
 // Hex grid SVG background
 const HexBackground: React.FC = () => (
@@ -91,15 +92,14 @@ const HudCrashFallback: React.FC = () => (
 );
 
 // Short acknowledgments spoken the instant a turn starts, to kill dead-air while the model works.
-const ACK_PHRASES = ['On it.', 'Right away, sir.', 'Working on it.', 'One moment.', 'Of course, sir.'];
+const ACK_PHRASES = ['On it.', 'Right away, sir.', 'One moment.', 'Of course, sir.', 'Certainly, sir.'];
 const pickAck = () => ACK_PHRASES[Math.floor(Math.random() * ACK_PHRASES.length)];
 
-// Index just past the last sentence-ending boundary, so we only speak complete sentences while
-// the answer is still streaming. Returns 0 when no complete sentence is present yet.
-function lastSentenceBoundary(text: string): number {
-  const m = text.match(/[\s\S]*[.!?\n]/);
-  return m ? m[0].length : 0;
-}
+// Holding phrases spoken while the model is still silent — cloud-queue first-token latency can
+// exceed 30 seconds, and dead air reads as a crash. Armed once per turn at AGENT_START and
+// cancelled for good at the first streamed token, so tool iterations don't replay them.
+const FILLER_PHRASES = ['Still on it, sir.', 'This one needs a moment.', 'Nearly there, sir.'];
+const FILLER_DELAYS_MS = [15_000, 40_000];
 
 export const JarvisHUDView: React.FC = () => (
   <GestureRegistryProvider>
@@ -166,6 +166,11 @@ const JarvisHUDContent: React.FC = () => {
   const spokenConvRef = useRef<string | null>(null);
   // How many chars of the current answer have already been spoken (streaming TTS).
   const spokenLenRef = useRef(0);
+  // True from AGENT_START until the first streamed token of the turn — the window in which
+  // holding phrases may fire. A ref mirrors it so the per-token SSE handler can disarm it
+  // without a state write per token.
+  const [awaitingFirstToken, setAwaitingFirstToken] = useState(false);
+  const awaitingFirstTokenRef = useRef(false);
 
   const handleFrontendEvent = useCallback((eventName: string, payload: unknown) => {
     if (eventName === 'render_diagram') {
@@ -181,11 +186,26 @@ const JarvisHUDContent: React.FC = () => {
     if (event.type === 'AGENT_START') {
       setSwarmDismissed(false);
       spokenLenRef.current = 0;
+      awaitingFirstTokenRef.current = true;
+      setAwaitingFirstToken(true);
       // Instant verbal acknowledgment — kills the dead-air while the model spins up.
       if (ttsEnabled) {
         stopTTS();
         enqueueTTS(pickAck());
       }
+    }
+    if (event.type === 'TOKEN' && awaitingFirstTokenRef.current) {
+      awaitingFirstTokenRef.current = false;
+      setAwaitingFirstToken(false);
+    }
+    if ((event.type === 'AGENT_END' || event.type === 'ERROR') && awaitingFirstTokenRef.current) {
+      awaitingFirstTokenRef.current = false;
+      setAwaitingFirstToken(false);
+    }
+    if (event.type === 'STREAM_RESET') {
+      // Tool-call iterations restart the token stream; restart the spoken-text pointer with
+      // it, or the next iteration's sentences are sliced at a stale offset.
+      spokenLenRef.current = 0;
     }
     // Speak proactive alerts aloud as well as showing the toast.
     if (event.type === 'PROACTIVE_ALERT' && ttsEnabled && event.content) {
@@ -215,13 +235,25 @@ const JarvisHUDContent: React.FC = () => {
   useEffect(() => {
     if (!ttsEnabled || !streamContent) return;
     setCaptionText(streamContent);
-    const boundary = lastSentenceBoundary(streamContent);
+    const boundary = lastSpeakableBoundary(streamContent);
     if (boundary > spokenLenRef.current) {
       const chunk = streamContent.slice(spokenLenRef.current, boundary);
       if (chunk.trim()) enqueueTTS(chunk);
       spokenLenRef.current = boundary;
     }
   }, [streamContent, ttsEnabled, enqueueTTS]);
+
+  // Spoken holding phrases while the model has produced nothing yet (slow first token).
+  // Once per turn: tool iterations clear the stream but never re-arm these.
+  const fillerIdxRef = useRef(0);
+  useEffect(() => {
+    if (!ttsEnabled || !awaitingFirstToken) return;
+    const timers = FILLER_DELAYS_MS.map(delay =>
+      window.setTimeout(() => {
+        enqueueTTS(FILLER_PHRASES[fillerIdxRef.current++ % FILLER_PHRASES.length]);
+      }, delay));
+    return () => timers.forEach(t => window.clearTimeout(t));
+  }, [ttsEnabled, awaitingFirstToken, enqueueTTS]);
 
   // When a final AI message lands, speak only the tail that streaming didn't already cover (and
   // the whole thing for non-streamed turns). On conversation switch, sync the baseline so we
